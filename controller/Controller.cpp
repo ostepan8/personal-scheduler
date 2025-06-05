@@ -16,6 +16,7 @@ Controller::Controller(Model &model, View &view)
 {
 }
 
+// Convert a UTC time_point to a local timestamp string
 string Controller::formatTimePoint(const system_clock::time_point &tp)
 {
     time_t t_c = system_clock::to_time_t(tp);
@@ -30,6 +31,7 @@ string Controller::formatTimePoint(const system_clock::time_point &tp)
     return string(buf);
 }
 
+// Interpret a local timestamp string and convert it to a UTC time_point
 system_clock::time_point Controller::parseTimePoint(const string &timestamp)
 {
     std::tm tm_buf{};
@@ -63,6 +65,8 @@ void Controller::printNextEvent()
 void Controller::run()
 {
     cout << "=== Scheduler CLI ===\n";
+    cout << "(All times are entered and displayed in local time,\n"
+            " but stored internally in UTC.)\n";
     cout << "Commands: add  addat  remove  list  next  quit\n";
 
     string line;

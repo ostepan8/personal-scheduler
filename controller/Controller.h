@@ -27,10 +27,10 @@ private:
     Model &model_;
     View &view_;
 
-    // Return a string “YYYY‑MM‑DD HH:MM” from a time_point.
+    // Convert a UTC time_point to a local time string "YYYY-MM-DD HH:MM".
     static std::string formatTimePoint(const std::chrono::system_clock::time_point &tp);
 
-    // Parse a timestamp string "YYYY-MM-DD HH:MM" into a time_point.
+    // Parse a local time string "YYYY-MM-DD HH:MM" and return a UTC time_point.
     static std::chrono::system_clock::time_point
     parseTimePoint(const std::string &timestamp);
 
