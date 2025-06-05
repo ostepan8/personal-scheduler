@@ -28,4 +28,18 @@ $(TARGET): $(OBJS)
 
 # Clean up intermediate and output files
 clean:
-	rm -f $(OBJS) $(TARGET)
+	rm -f $(OBJS) $(TARGET) $(TEST_OBJS) $(TEST_TARGET)
+
+# Test setup
+TEST_SRCS = tests/recurrence_tests.cpp \
+            model/recurrence/DailyRecurrence.cpp \
+            model/recurrence/WeeklyRecurrence.cpp 
+TEST_OBJS = $(TEST_SRCS:.cpp=.o)
+TEST_TARGET = recurrence_tests
+
+test: $(TEST_TARGET)
+
+$(TEST_TARGET): $(TEST_OBJS)
+	$(CXX) $(CXXFLAGS) $(TEST_OBJS) -o $(TEST_TARGET)
+
+.PHONY: test
