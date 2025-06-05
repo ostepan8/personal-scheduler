@@ -9,7 +9,8 @@
 class WeeklyRecurrence : public RecurrencePattern
 {
 private:
-    chrono::system_clock::time_point startingPoint; // First date/time
+    // First date/time of the recurrence (UTC)
+    chrono::system_clock::time_point startingPoint;
     vector<Weekday> daysOfTheWeek;                  // Which days of the week should this event run?
     int repeatingInterval;                          // This is the x in every x weeks.
     int maxOccurrences;                             // optional: stop after N times (-1 = unlimited)

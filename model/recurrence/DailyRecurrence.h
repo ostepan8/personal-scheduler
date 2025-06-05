@@ -8,7 +8,8 @@
 class DailyRecurrence : public RecurrencePattern
 {
 private:
-    chrono::system_clock::time_point startingPoint; // First date
+    // First date/time of the recurrence (UTC)
+    chrono::system_clock::time_point startingPoint;
     int repeatingInterval;                          // This is the x in every x days.
     int maxOccurrences;                             // optional: stop after N times (-1 = unlimited)
     chrono::system_clock::time_point endDate;       // optional: stop by a certain date
