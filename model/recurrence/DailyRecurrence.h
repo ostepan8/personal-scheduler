@@ -1,4 +1,6 @@
 #include "RecurrencePattern.h"
+#include <chrono>
+#include <vector>
 
 // This pattern handles the "Every x days" recurrence
 // Example: every 7 days I want to order Nandos.

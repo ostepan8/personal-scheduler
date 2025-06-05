@@ -6,6 +6,7 @@
 #include <sstream>
 #include <chrono>
 #include <ctime>
+#include <stdexcept>
 
 using namespace std;
 using namespace std::chrono;
@@ -29,6 +30,19 @@ string Controller::formatTimePoint(const system_clock::time_point &tp)
     return string(buf);
 }
 
+system_clock::time_point Controller::parseTimePoint(const string &timestamp)
+{
+    std::tm tm_buf{};
+    std::istringstream ss(timestamp);
+    ss >> std::get_time(&tm_buf, "%Y-%m-%d %H:%M");
+    if (ss.fail())
+    {
+        throw std::runtime_error("Invalid timestamp format");
+    }
+    time_t time_c = std::mktime(&tm_buf);
+    return system_clock::from_time_t(time_c);
+}
+
 void Controller::printNextEvent()
 {
     try
@@ -49,7 +63,7 @@ void Controller::printNextEvent()
 void Controller::run()
 {
     cout << "=== Scheduler CLI ===\n";
-    cout << "Commands: add  remove  list  next  quit\n";
+    cout << "Commands: add  addat  remove  list  next  quit\n";
 
     string line;
     while (true)
@@ -87,6 +101,37 @@ void Controller::run()
             model_.addEvent(e);
             cout << "Added event [" << id << "]\n";
         }
+        else if (cmd == "addat")
+        {
+            // Prompt for ID, title, description, timestamp
+            cout << "Enter event ID: ";
+            string id;
+            getline(cin, id);
+            cout << "Enter title: ";
+            string title;
+            getline(cin, title);
+            cout << "Enter description: ";
+            string desc;
+            getline(cin, desc);
+            cout << "Enter time (YYYY-MM-DD HH:MM): ";
+            string timestr;
+            getline(cin, timestr);
+            system_clock::time_point tp;
+            try
+            {
+                tp = parseTimePoint(timestr);
+            }
+            catch (const std::exception &e)
+            {
+                cout << e.what() << "\n";
+                continue;
+            }
+            system_clock::duration dur = hours(1);
+
+            OneTimeEvent e{id, desc, title, tp, dur};
+            model_.addEvent(e);
+            cout << "Added event [" << id << "]\n";
+        }
         else if (cmd == "remove")
         {
             cout << "Enter event ID to remove: ";
@@ -115,7 +160,7 @@ void Controller::run()
         }
         else
         {
-            cout << "Unknown command. Available: add  remove  list  next  quit\n";
+            cout << "Unknown command. Available: add  addat  remove  list  next  quit\n";
         }
     }
 
