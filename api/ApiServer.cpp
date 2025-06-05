@@ -115,7 +115,11 @@ void ApiServer::setupRoutes()
             auto ev = model_.getNextEvent();
             out["status"] = "ok";
             out["data"] = eventToJson(ev);
-        } catch (const std::runtime_error &ex) {
+        } catch (const std::runtime_error &) {
+            // When there are 0 events, return status ok with empty data
+            out["status"] = "ok";
+            out["data"] = nullptr;
+        } catch (const std::exception &ex) {
             out = json{{"status", "error"}, {"message", ex.what()}};
         }
         res.set_content(out.dump(), "application/json"); });
@@ -132,10 +136,6 @@ void ApiServer::setupRoutes()
             for (const auto &ev : events) data.push_back(eventToJson(ev));
             out["status"] = "ok";
             out["data"] = data;
-        } catch (const std::runtime_error &ex) {
-            // If there are no events, return status ok with empty array
-            out["status"] = "ok";
-            out["data"] = json::array();
         } catch (const std::exception &ex) {
             out = json{{"status", "error"}, {"message", ex.what()}};
         }
