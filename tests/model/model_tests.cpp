@@ -112,6 +112,30 @@ static void testEventsInMonth()
     assert(evs[1].getId() == "3");
 }
 
+static void testEventsTimeZones()
+{
+    const char *prev = getenv("TZ");
+    setenv("TZ", "Europe/Berlin", 1);
+    tzset();
+
+    Model m({});
+    OneTimeEvent e("1","d","t", makeTime(2025,6,1,9), hours(1));
+    m.addEvent(e);
+
+    auto d = m.getEventsOnDay(makeTime(2025,6,1,0));
+    assert(d.size() == 1);
+    auto w = m.getEventsInWeek(makeTime(2025,6,1,0));
+    assert(w.size() == 1);
+    auto mo = m.getEventsInMonth(makeTime(2025,6,1,0));
+    assert(mo.size() == 1);
+
+    if (prev)
+        setenv("TZ", prev, 1);
+    else
+        unsetenv("TZ");
+    tzset();
+}
+
 int main()
 {
     testModelAddAndRetrieve();
@@ -121,6 +145,7 @@ int main()
     testEventsOnDay();
     testEventsInWeek();
     testEventsInMonth();
+    testEventsTimeZones();
     cout << "Model tests passed\n";
     return 0;
 }
