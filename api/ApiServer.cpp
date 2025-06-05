@@ -1,7 +1,7 @@
 #include "ApiServer.h"
 #include "../model/OneTimeEvent.h"
 #include "../model/Event.h"
-#include <nlohmann/json.hpp>
+#include "nlohmann/json.hpp"
 #include <iostream>
 #include <iomanip>
 #include <sstream>
@@ -61,7 +61,8 @@ static json eventToJson(const Event &e)
 
 void ApiServer::setupRoutes()
 {
-    server_.Get("/events", [this](const httplib::Request &, httplib::Response &res) {
+    server_.Get("/events", [this](const httplib::Request &, httplib::Response &res)
+                {
         std::cout << "GET /events" << std::endl;
         json out;
         try {
@@ -76,10 +77,10 @@ void ApiServer::setupRoutes()
         } catch (const std::exception &ex) {
             out = json{{"status", "error"}, {"message", ex.what()}};
         }
-        res.set_content(out.dump(), "application/json");
-    });
+        res.set_content(out.dump(), "application/json"); });
 
-    server_.Get("/events/next", [this](const httplib::Request &, httplib::Response &res) {
+    server_.Get("/events/next", [this](const httplib::Request &, httplib::Response &res)
+                {
         std::cout << "GET /events/next" << std::endl;
         json out;
         try {
@@ -89,10 +90,10 @@ void ApiServer::setupRoutes()
         } catch (const std::exception &ex) {
             out = json{{"status", "error"}, {"message", ex.what()}};
         }
-        res.set_content(out.dump(), "application/json");
-    });
+        res.set_content(out.dump(), "application/json"); });
 
-    server_.Post("/events", [this](const httplib::Request &req, httplib::Response &res) {
+    server_.Post("/events", [this](const httplib::Request &req, httplib::Response &res)
+                 {
         std::cout << "POST /events" << std::endl;
         json out;
         try {
@@ -112,10 +113,10 @@ void ApiServer::setupRoutes()
         } catch (const std::exception &ex) {
             out = json{{"status", "error"}, {"message", ex.what()}};
         }
-        res.set_content(out.dump(), "application/json");
-    });
+        res.set_content(out.dump(), "application/json"); });
 
-    server_.Delete(R"(/events/(.+))", [this](const httplib::Request &req, httplib::Response &res) {
+    server_.Delete(R"(/events/(.+))", [this](const httplib::Request &req, httplib::Response &res)
+                   {
         std::cout << "DELETE /events/" << req.matches[1] << std::endl;
         json out;
         try {
@@ -128,6 +129,5 @@ void ApiServer::setupRoutes()
         } catch (const std::exception &ex) {
             out = json{{"status", "error"}, {"message", ex.what()}};
         }
-        res.set_content(out.dump(), "application/json");
-    });
+        res.set_content(out.dump(), "application/json"); });
 }

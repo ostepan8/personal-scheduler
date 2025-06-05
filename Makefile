@@ -1,6 +1,8 @@
 # Compiler and flags
 CXX      = g++
-CXXFLAGS = -std=c++11 -Wall
+CXXFLAGS = -std=c++11 -Wall -Iapi -Iexternal/json
+
+
 
 # Source files
 SRCS = main.cpp \
@@ -22,7 +24,7 @@ TARGET = scheduler
 
 # Main build rule: link all object files into the executable
 $(TARGET): $(OBJS)
-	$(CXX) $(CXXFLAGS) $(OBJS) -lsqlite3 -lcpp-httplib -pthread -o $(TARGET)
+	$(CXX) $(CXXFLAGS) $(OBJS) -lsqlite3 -pthread -o $(TARGET)
 
 # Rule to compile any .cpp into .o
 %.o: %.cpp
