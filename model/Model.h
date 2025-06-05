@@ -34,6 +34,11 @@ public:
 
     Event getNextEvent() const override;
 
+    // Additional query methods
+    std::vector<Event> getEventsOnDay(std::chrono::system_clock::time_point day) const;
+    std::vector<Event> getEventsInWeek(std::chrono::system_clock::time_point day) const;
+    std::vector<Event> getEventsInMonth(std::chrono::system_clock::time_point day) const;
+
     // ====== Mutation methods ======
 
     // Add a new event. Returns true on success.
