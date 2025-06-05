@@ -12,10 +12,14 @@ void Model::sortEvents()
               });
 }
 
-// Constructor: take the incoming vector, move it in, then sort.
-Model::Model(std::vector<Event> init)
-    : events(std::move(init))
+// Constructor: optionally load events from a database, otherwise use provided list.
+Model::Model(std::vector<Event> init, IScheduleDatabase *db)
+    : events(std::move(init)), db_(db)
 {
+    if (db_)
+    {
+        events = db_->getAllEvents();
+    }
     sortEvents();
 }
 
@@ -59,6 +63,10 @@ bool Model::addEvent(Event &e)
 {
     events.push_back(e);
     sortEvents();
+    if (db_)
+    {
+        db_->addEvent(e);
+    }
     return true;
 }
 
@@ -76,5 +84,10 @@ bool Model::removeEvent(const std::string &id)
                                     return ev.getId() == id;
                                 }),
                  events.end());
-    return events.size() < beforeSize;
+    bool removed = events.size() < beforeSize;
+    if (removed && db_)
+    {
+        db_->removeEvent(id);
+    }
+    return removed;
 }
