@@ -2,9 +2,9 @@
 #include <iostream>
 #include <vector>
 #include <ctime>
-#include "../model/recurrence/DailyRecurrence.h"
-#include "../model/recurrence/WeeklyRecurrence.h"
-#include "../utils/WeekDay.h"
+#include "../../model/recurrence/DailyRecurrence.h"
+#include "../../model/recurrence/WeeklyRecurrence.h"
+#include "../../utils/WeekDay.h"
 
 using namespace std;
 using namespace chrono;
