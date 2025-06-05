@@ -49,11 +49,7 @@ static system_clock::time_point parseMonth(const std::string &monthStr)
 ApiServer::ApiServer(Model &model, int port)
     : model_(model), port_(port)
 {
-    server_.set_default_headers({
-        {"Access-Control-Allow-Origin", "*"},
-        {"Access-Control-Allow-Headers", "Content-Type"},
-        {"Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS"}
-    });
+
     setupRoutes();
 }
 
@@ -81,15 +77,19 @@ static json eventToJson(const Event &e)
 
 void ApiServer::setupRoutes()
 {
+    // 1) OPTIONS preflight (respond with CORS headers exactly once)
     server_.Options(R"(.*)", [](const httplib::Request &, httplib::Response &res)
                     {
+        // Only one '*' allowed here:
         res.set_header("Access-Control-Allow-Origin", "*");
         res.set_header("Access-Control-Allow-Headers", "Content-Type");
         res.set_header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
-    });
+        res.status = 200;
+        res.set_content("", "text/plain"); });
 
     server_.Get("/events", [this](const httplib::Request &, httplib::Response &res)
                 {
+                    res.set_header("Access-Control-Allow-Origin", "*");
         std::cout << "GET /events" << std::endl;
         json out;
         try {
@@ -108,19 +108,21 @@ void ApiServer::setupRoutes()
 
     server_.Get("/events/next", [this](const httplib::Request &, httplib::Response &res)
                 {
+                    res.set_header("Access-Control-Allow-Origin", "*");
         std::cout << "GET /events/next" << std::endl;
         json out;
         try {
             auto ev = model_.getNextEvent();
             out["status"] = "ok";
             out["data"] = eventToJson(ev);
-        } catch (const std::exception &ex) {
+        } catch (const std::runtime_error &ex) {
             out = json{{"status", "error"}, {"message", ex.what()}};
         }
         res.set_content(out.dump(), "application/json"); });
 
     server_.Get(R"(/events/day/(\d{4}-\d{2}-\d{2}))", [this](const httplib::Request &req, httplib::Response &res)
                 {
+                    res.set_header("Access-Control-Allow-Origin", "*");
         std::cout << "GET /events/day/" << req.matches[1] << std::endl;
         json out;
         try {
@@ -130,6 +132,10 @@ void ApiServer::setupRoutes()
             for (const auto &ev : events) data.push_back(eventToJson(ev));
             out["status"] = "ok";
             out["data"] = data;
+        } catch (const std::runtime_error &ex) {
+            // If there are no events, return status ok with empty array
+            out["status"] = "ok";
+            out["data"] = json::array();
         } catch (const std::exception &ex) {
             out = json{{"status", "error"}, {"message", ex.what()}};
         }
@@ -137,6 +143,7 @@ void ApiServer::setupRoutes()
 
     server_.Get(R"(/events/week/(\d{4}-\d{2}-\d{2}))", [this](const httplib::Request &req, httplib::Response &res)
                 {
+                    res.set_header("Access-Control-Allow-Origin", "*");
         std::cout << "GET /events/week/" << req.matches[1] << std::endl;
         json out;
         try {
@@ -153,6 +160,7 @@ void ApiServer::setupRoutes()
 
     server_.Get(R"(/events/month/(\d{4}-\d{2}))", [this](const httplib::Request &req, httplib::Response &res)
                 {
+                    res.set_header("Access-Control-Allow-Origin", "*");
         std::cout << "GET /events/month/" << req.matches[1] << std::endl;
         json out;
         try {
@@ -169,6 +177,7 @@ void ApiServer::setupRoutes()
 
     server_.Post("/events", [this](const httplib::Request &req, httplib::Response &res)
                  {
+                    res.set_header("Access-Control-Allow-Origin", "*");
         std::cout << "POST /events" << std::endl;
         json out;
         try {
@@ -192,6 +201,7 @@ void ApiServer::setupRoutes()
 
     server_.Delete(R"(/events/(.+))", [this](const httplib::Request &req, httplib::Response &res)
                    {
+                    res.set_header("Access-Control-Allow-Origin", "*");
         std::cout << "DELETE /events/" << req.matches[1] << std::endl;
         json out;
         try {
