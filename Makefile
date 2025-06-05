@@ -57,6 +57,15 @@ MODEL_TEST_SRCS = tests/model/model_tests.cpp \
 MODEL_TEST_OBJS = $(MODEL_TEST_SRCS:.cpp=.o)
 MODEL_TEST_TARGET = model_tests
 
+MODEL_COMPREHENSIVE_TEST_SRCS = tests/model/model_comprehensive_tests.cpp \
+                                model/Model.cpp \
+                                model/OneTimeEvent.cpp \
+                                model/RecurringEvent.cpp \
+                                model/recurrence/DailyRecurrence.cpp \
+                                model/recurrence/WeeklyRecurrence.cpp
+MODEL_COMPREHENSIVE_TEST_OBJS = $(MODEL_COMPREHENSIVE_TEST_SRCS:.cpp=.o)
+MODEL_COMPREHENSIVE_TEST_TARGET = model_comprehensive_tests
+
 CONTROLLER_TEST_SRCS = tests/controller/controller_tests.cpp \
                        controller/Controller.cpp \
                        model/Model.cpp \
@@ -67,7 +76,7 @@ CONTROLLER_TEST_SRCS = tests/controller/controller_tests.cpp \
 CONTROLLER_TEST_OBJS = $(CONTROLLER_TEST_SRCS:.cpp=.o)
 CONTROLLER_TEST_TARGET = controller_tests
 
-TEST_TARGETS = $(RECURRENCE_TEST_TARGET) $(EVENT_TEST_TARGET) $(MODEL_TEST_TARGET) $(CONTROLLER_TEST_TARGET)
+TEST_TARGETS = $(RECURRENCE_TEST_TARGET) $(EVENT_TEST_TARGET) $(MODEL_TEST_TARGET) $(MODEL_COMPREHENSIVE_TEST_TARGET) $(CONTROLLER_TEST_TARGET)
 
 test: $(TEST_TARGETS)
 
@@ -79,6 +88,9 @@ $(EVENT_TEST_TARGET): $(EVENT_TEST_OBJS)
 
 $(MODEL_TEST_TARGET): $(MODEL_TEST_OBJS)
 	$(CXX) $(CXXFLAGS) $(MODEL_TEST_OBJS) -o $@
+
+$(MODEL_COMPREHENSIVE_TEST_TARGET): $(MODEL_COMPREHENSIVE_TEST_OBJS)
+	$(CXX) $(CXXFLAGS) $(MODEL_COMPREHENSIVE_TEST_OBJS) -o $@
 
 $(CONTROLLER_TEST_TARGET): $(CONTROLLER_TEST_OBJS)
 	$(CXX) $(CXXFLAGS) $(CONTROLLER_TEST_OBJS) -o $@

@@ -3,6 +3,8 @@
 #include <sstream>
 #include "../../model/Model.h"
 #include "../../model/OneTimeEvent.h"
+#include "../../model/RecurringEvent.h"
+#include "../../model/recurrence/DailyRecurrence.h"
 #include "../test_utils.h"
 
 #define private public
@@ -145,6 +147,26 @@ static void testControllerPrintNextEventNone()
     assert(ss.str().find("no upcoming events") != string::npos);
 }
 
+static void testControllerAddRecurring()
+{
+    Model m({});
+    StubView v(m);
+    Controller c(m,v);
+
+    auto start = makeTime(2025,6,1,9);
+    DailyRecurrence pattern(start, 1);
+    c.addRecurringEvent("R", "t", "d", start, hours(1), pattern);
+
+    OneTimeEvent o("O","d","t", makeTime(2025,6,2,9), hours(1));
+    m.addEvent(o);
+
+    std::ostringstream ss;
+    auto old = cout.rdbuf(ss.rdbuf());
+    c.printNextEvent();
+    cout.rdbuf(old);
+    assert(ss.str().find("[R]") != string::npos);
+}
+
 int main()
 {
     testControllerParseFormat();
@@ -152,6 +174,7 @@ int main()
     testControllerCrossTimeZones();
     testControllerPrintNextEvent();
     testControllerPrintNextEventNone();
+    testControllerAddRecurring();
     cout << "Controller tests passed\n";
     return 0;
 }
