@@ -7,11 +7,12 @@
 
 /*
   Controller coordinates a Model and a View.  It runs a simple CLI loop:
-    - “add” prompts for ID, title, description, and hours‐from‐now → adds OneTimeEvent.
-    - “remove” prompts for ID → removes that event.
-    - “list” → asks View to render current Model state.
-    - “next” → prints the next upcoming event.
-    - “quit” → exits.
+    - "add" prompts for ID, title, description, and hours-from-now → adds OneTimeEvent.
+    - "addat" prompts for ID, title, description, and timestamp → adds OneTimeEvent at a specific time.
+    - "remove" prompts for ID → removes that event.
+    - "list" → asks View to render current Model state.
+    - "next" → prints the next upcoming event.
+    - "quit" → exits.
 */
 class Controller
 {
@@ -28,6 +29,10 @@ private:
 
     // Return a string “YYYY‑MM‑DD HH:MM” from a time_point.
     static std::string formatTimePoint(const std::chrono::system_clock::time_point &tp);
+
+    // Parse a timestamp string "YYYY-MM-DD HH:MM" into a time_point.
+    static std::chrono::system_clock::time_point
+    parseTimePoint(const std::string &timestamp);
 
     // Print the next upcoming event or “no upcoming events”.
     void printNextEvent();
