@@ -11,6 +11,7 @@ SRCS = main.cpp \
        model/recurrence/DailyRecurrence.cpp \
        model/recurrence/WeeklyRecurrence.cpp \
        view/TextualView.cpp \
+       api/ApiServer.cpp \
        database/SQLiteScheduleDatabase.cpp
 
 # Object files (replace .cpp with .o)
@@ -21,7 +22,7 @@ TARGET = scheduler
 
 # Main build rule: link all object files into the executable
 $(TARGET): $(OBJS)
-	$(CXX) $(CXXFLAGS) $(OBJS) -lsqlite3 -o $(TARGET)
+	$(CXX) $(CXXFLAGS) $(OBJS) -lsqlite3 -lcpp-httplib -pthread -o $(TARGET)
 
 # Rule to compile any .cpp into .o
 %.o: %.cpp
