@@ -28,18 +28,59 @@ $(TARGET): $(OBJS)
 
 # Clean up intermediate and output files
 clean:
-	rm -f $(OBJS) $(TARGET) $(TEST_OBJS) $(TEST_TARGET)
+	rm -f $(OBJS) $(TARGET) \
+	      $(RECURRENCE_TEST_OBJS) $(EVENT_TEST_OBJS) \
+	      $(MODEL_TEST_OBJS) $(CONTROLLER_TEST_OBJS) \
+	      $(TEST_TARGETS)
 
 # Test setup
-TEST_SRCS = tests/recurrence_tests.cpp \
-            model/recurrence/DailyRecurrence.cpp \
-            model/recurrence/WeeklyRecurrence.cpp 
-TEST_OBJS = $(TEST_SRCS:.cpp=.o)
-TEST_TARGET = recurrence_tests
+RECURRENCE_TEST_SRCS = tests/recurrence/recurrence_tests.cpp \
+                       model/recurrence/DailyRecurrence.cpp \
+                       model/recurrence/WeeklyRecurrence.cpp
+RECURRENCE_TEST_OBJS = $(RECURRENCE_TEST_SRCS:.cpp=.o)
+RECURRENCE_TEST_TARGET = recurrence_tests
 
-test: $(TEST_TARGET)
+EVENT_TEST_SRCS = tests/events/event_tests.cpp \
+                  model/OneTimeEvent.cpp \
+                  model/RecurringEvent.cpp \
+                  model/recurrence/DailyRecurrence.cpp \
+                  model/recurrence/WeeklyRecurrence.cpp
+EVENT_TEST_OBJS = $(EVENT_TEST_SRCS:.cpp=.o)
+EVENT_TEST_TARGET = event_tests
 
-$(TEST_TARGET): $(TEST_OBJS)
-	$(CXX) $(CXXFLAGS) $(TEST_OBJS) -o $(TEST_TARGET)
+MODEL_TEST_SRCS = tests/model/model_tests.cpp \
+                  model/Model.cpp \
+                  model/OneTimeEvent.cpp \
+                  model/RecurringEvent.cpp \
+                  model/recurrence/DailyRecurrence.cpp \
+                  model/recurrence/WeeklyRecurrence.cpp
+MODEL_TEST_OBJS = $(MODEL_TEST_SRCS:.cpp=.o)
+MODEL_TEST_TARGET = model_tests
+
+CONTROLLER_TEST_SRCS = tests/controller/controller_tests.cpp \
+                       controller/Controller.cpp \
+                       model/Model.cpp \
+                       model/OneTimeEvent.cpp \
+                       model/RecurringEvent.cpp \
+                       model/recurrence/DailyRecurrence.cpp \
+                       model/recurrence/WeeklyRecurrence.cpp
+CONTROLLER_TEST_OBJS = $(CONTROLLER_TEST_SRCS:.cpp=.o)
+CONTROLLER_TEST_TARGET = controller_tests
+
+TEST_TARGETS = $(RECURRENCE_TEST_TARGET) $(EVENT_TEST_TARGET) $(MODEL_TEST_TARGET) $(CONTROLLER_TEST_TARGET)
+
+test: $(TEST_TARGETS)
+
+$(RECURRENCE_TEST_TARGET): $(RECURRENCE_TEST_OBJS)
+	$(CXX) $(CXXFLAGS) $(RECURRENCE_TEST_OBJS) -o $@
+
+$(EVENT_TEST_TARGET): $(EVENT_TEST_OBJS)
+	$(CXX) $(CXXFLAGS) $(EVENT_TEST_OBJS) -o $@
+
+$(MODEL_TEST_TARGET): $(MODEL_TEST_OBJS)
+	$(CXX) $(CXXFLAGS) $(MODEL_TEST_OBJS) -o $@
+
+$(CONTROLLER_TEST_TARGET): $(CONTROLLER_TEST_OBJS)
+	$(CXX) $(CXXFLAGS) $(CONTROLLER_TEST_OBJS) -o $@
 
 .PHONY: test
