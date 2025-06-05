@@ -5,6 +5,7 @@
 #include <string>
 #include "Event.h"
 #include "ReadOnlyModel.h"
+#include "../database/IScheduleDatabase.h"
 
 /*
   Model extends ReadOnlyModel by adding mutators (addEvent, removeEvent).
@@ -14,13 +15,14 @@ class Model : public ReadOnlyModel
 {
 private:
     std::vector<Event> events;
+    IScheduleDatabase *db_;
 
     // Re‐sort the internal list whenever it changes.
     void sortEvents();
 
 public:
-    // Construct with an initial list of events. They’re sorted right away.
-    explicit Model(std::vector<Event> init);
+    // Construct with an initial list of events and optional database.
+    explicit Model(std::vector<Event> init, IScheduleDatabase *db = nullptr);
 
     // ReadOnlyModel overrides (note the const):
     std::vector<Event>
