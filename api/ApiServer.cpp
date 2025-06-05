@@ -98,7 +98,7 @@ void ApiServer::setupRoutes()
         json out;
         try {
             auto body = json::parse(req.body);
-            std::string id = body.at("id");
+            std::string id = model_.generateUniqueId();
             std::string title = body.value("title", "");
             std::string description = body.value("description", "");
             std::string timeStr = body.at("time");

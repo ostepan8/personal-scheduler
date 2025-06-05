@@ -8,8 +8,8 @@
 
 /*
   Controller coordinates a Model and a View.  It runs a simple CLI loop:
-    - "add" prompts for ID, title, description, and hours-from-now → adds OneTimeEvent.
-    - "addat" prompts for ID, title, description, and timestamp → adds OneTimeEvent at a specific time.
+    - "add" prompts for title, description, and hours-from-now → adds OneTimeEvent with an auto-generated ID.
+    - "addat" prompts for title, description, and timestamp → adds OneTimeEvent at a specific time with an auto-generated ID.
     - "remove" prompts for ID → removes that event.
     - "list" → asks View to render current Model state.
     - "next" → prints the next upcoming event.
@@ -38,11 +38,10 @@ private:
     // Print the next upcoming event or “no upcoming events”.
     void printNextEvent();
 
-    // Add a recurring event using an existing RecurrencePattern.
-    void addRecurringEvent(const std::string &id,
-                           const std::string &title,
-                           const std::string &desc,
-                           std::chrono::system_clock::time_point start,
-                           std::chrono::system_clock::duration dur,
-                           RecurrencePattern &pattern);
+    // Add a recurring event using an existing RecurrencePattern. Returns the ID of the new event.
+    std::string addRecurringEvent(const std::string &title,
+                                  const std::string &desc,
+                                  std::chrono::system_clock::time_point start,
+                                  std::chrono::system_clock::duration dur,
+                                  RecurrencePattern &pattern);
 };
