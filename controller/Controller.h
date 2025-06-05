@@ -3,6 +3,7 @@
 
 #include <string>
 #include "../model/Model.h"
+#include "../model/recurrence/RecurrencePattern.h"
 #include "../view/View.h"
 
 /*
@@ -36,4 +37,12 @@ private:
 
     // Print the next upcoming event or “no upcoming events”.
     void printNextEvent();
+
+    // Add a recurring event using an existing RecurrencePattern.
+    void addRecurringEvent(const std::string &id,
+                           const std::string &title,
+                           const std::string &desc,
+                           std::chrono::system_clock::time_point start,
+                           std::chrono::system_clock::duration dur,
+                           RecurrencePattern &pattern);
 };
