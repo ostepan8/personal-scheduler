@@ -49,6 +49,11 @@ static system_clock::time_point parseMonth(const std::string &monthStr)
 ApiServer::ApiServer(Model &model, int port)
     : model_(model), port_(port)
 {
+    server_.set_default_headers({
+        {"Access-Control-Allow-Origin", "*"},
+        {"Access-Control-Allow-Headers", "Content-Type"},
+        {"Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS"}
+    });
     setupRoutes();
 }
 
@@ -76,6 +81,13 @@ static json eventToJson(const Event &e)
 
 void ApiServer::setupRoutes()
 {
+    server_.Options(R"(.*)", [](const httplib::Request &, httplib::Response &res)
+                    {
+        res.set_header("Access-Control-Allow-Origin", "*");
+        res.set_header("Access-Control-Allow-Headers", "Content-Type");
+        res.set_header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
+    });
+
     server_.Get("/events", [this](const httplib::Request &, httplib::Response &res)
                 {
         std::cout << "GET /events" << std::endl;
