@@ -9,3 +9,7 @@ are displayed.
 Summary:
 - **Input and output:** local time
 - **Internal storage:** UTC
+
+## Running Tests
+
+Use `make test` or run the `./run_all_tests.sh` script to build and execute all unit tests.
