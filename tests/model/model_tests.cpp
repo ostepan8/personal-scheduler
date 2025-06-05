@@ -73,12 +73,54 @@ static void testModelWithDailyRecurring()
     assert(evs[1].getId() == "O");
 }
 
+static void testEventsOnDay()
+{
+    Model m({});
+    OneTimeEvent e1("1","d","t", makeTime(2025,6,1,8), hours(1));
+    OneTimeEvent e2("2","d","t", makeTime(2025,6,1,12), hours(1));
+    OneTimeEvent e3("3","d","t", makeTime(2025,6,2,9), hours(1));
+    m.addEvent(e1); m.addEvent(e2); m.addEvent(e3);
+    auto evs = m.getEventsOnDay(makeTime(2025,6,1,0));
+    assert(evs.size() == 2);
+    assert(evs[0].getId() == "1");
+    assert(evs[1].getId() == "2");
+}
+
+static void testEventsInWeek()
+{
+    Model m({});
+    OneTimeEvent e1("1","d","t", makeTime(2025,6,2,9), hours(1)); // Monday
+    OneTimeEvent e2("2","d","t", makeTime(2025,6,5,9), hours(1)); // Thursday
+    OneTimeEvent e3("3","d","t", makeTime(2025,6,9,9), hours(1)); // next Monday
+    m.addEvent(e1); m.addEvent(e2); m.addEvent(e3);
+    auto evs = m.getEventsInWeek(makeTime(2025,6,3,0));
+    assert(evs.size() == 2);
+    assert(evs[0].getId() == "1");
+    assert(evs[1].getId() == "2");
+}
+
+static void testEventsInMonth()
+{
+    Model m({});
+    OneTimeEvent e1("1","d","t", makeTime(2025,6,2,9), hours(1));
+    OneTimeEvent e2("2","d","t", makeTime(2025,7,1,9), hours(1));
+    OneTimeEvent e3("3","d","t", makeTime(2025,6,20,9), hours(1));
+    m.addEvent(e1); m.addEvent(e2); m.addEvent(e3);
+    auto evs = m.getEventsInMonth(makeTime(2025,6,10,0));
+    assert(evs.size() == 2);
+    assert(evs[0].getId() == "1");
+    assert(evs[1].getId() == "3");
+}
+
 int main()
 {
     testModelAddAndRetrieve();
     testModelRemove();
     testModelGetEventsLimit();
     testModelWithDailyRecurring();
+    testEventsOnDay();
+    testEventsInWeek();
+    testEventsInMonth();
     cout << "Model tests passed\n";
     return 0;
 }

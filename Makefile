@@ -95,7 +95,18 @@ CONTROLLER_TEST_SRCS = tests/controller/controller_tests.cpp \
 CONTROLLER_TEST_OBJS = $(CONTROLLER_TEST_SRCS:.cpp=.o)
 CONTROLLER_TEST_TARGET = controller_tests
 
-TEST_TARGETS = $(RECURRENCE_TEST_TARGET) $(EVENT_TEST_TARGET) $(MODEL_TEST_TARGET) $(MODEL_COMPREHENSIVE_TEST_TARGET) $(CONTROLLER_TEST_TARGET)
+# API server tests
+API_TEST_SRCS = tests/api/api_tests.cpp \
+                api/ApiServer.cpp \
+                model/Model.cpp \
+                model/OneTimeEvent.cpp \
+                model/RecurringEvent.cpp \
+                model/recurrence/DailyRecurrence.cpp \
+                model/recurrence/WeeklyRecurrence.cpp
+API_TEST_OBJS = $(API_TEST_SRCS:.cpp=.o)
+API_TEST_TARGET = api_tests
+
+TEST_TARGETS = $(RECURRENCE_TEST_TARGET) $(EVENT_TEST_TARGET) $(MODEL_TEST_TARGET) $(MODEL_COMPREHENSIVE_TEST_TARGET) $(CONTROLLER_TEST_TARGET) $(API_TEST_TARGET)
 
 test: $(TEST_TARGETS)
 	./run_all_tests.sh
@@ -113,5 +124,8 @@ $(MODEL_COMPREHENSIVE_TEST_TARGET): $(MODEL_COMPREHENSIVE_TEST_OBJS)
 
 $(CONTROLLER_TEST_TARGET): $(CONTROLLER_TEST_OBJS)
 	$(CXX) $(CXXFLAGS) $(CONTROLLER_TEST_OBJS) -o $@
+
+$(API_TEST_TARGET): $(API_TEST_OBJS)
+	$(CXX) $(CXXFLAGS) $(API_TEST_OBJS) -pthread -o $@
 
 .PHONY: test
