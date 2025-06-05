@@ -19,12 +19,27 @@ SRCS = main.cpp \
 # Object files (replace .cpp with .o)
 OBJS = $(SRCS:.cpp=.o)
 
-# Final executable name
-TARGET = scheduler
+# Executable names
+API_TARGET = api_server
 
-# Main build rule: link all object files into the executable
-$(TARGET): $(OBJS)
-	$(CXX) $(CXXFLAGS) $(OBJS) -lsqlite3 -pthread -o $(TARGET)
+# Source files for the MVC command-line application
+MVC_SRCS = $(filter-out main.cpp api/ApiServer.cpp,$(SRCS)) main_mvc.cpp
+MVC_OBJS = $(MVC_SRCS:.cpp=.o)
+
+# Main build rule: link all object files into the API executable
+$(API_TARGET): $(OBJS)
+	$(CXX) $(CXXFLAGS) $(OBJS) -lsqlite3 -pthread -o $(API_TARGET)
+
+# Build rule for the MVC command-line executable
+mvc: $(MVC_OBJS)
+	$(CXX) $(CXXFLAGS) $(MVC_OBJS) -lsqlite3 -pthread -o mvc
+
+.PHONY: mvc
+
+# Alias for building the API server
+api: $(API_TARGET)
+
+.PHONY: api
 
 # Rule to compile any .cpp into .o
 %.o: %.cpp
@@ -32,10 +47,10 @@ $(TARGET): $(OBJS)
 
 # Clean up intermediate and output files
 clean:
-	rm -f $(OBJS) $(TARGET) \
-	      $(RECURRENCE_TEST_OBJS) $(EVENT_TEST_OBJS) \
-	      $(MODEL_TEST_OBJS) $(CONTROLLER_TEST_OBJS) \
-	      $(TEST_TARGETS)
+	rm -f $(OBJS) main_mvc.o $(API_TARGET) mvc \
+	$(RECURRENCE_TEST_OBJS) $(EVENT_TEST_OBJS) \
+$(MODEL_TEST_OBJS) $(MODEL_COMPREHENSIVE_TEST_OBJS) \
+$(CONTROLLER_TEST_OBJS) $(TEST_TARGETS)
 
 # Test setup
 RECURRENCE_TEST_SRCS = tests/recurrence/recurrence_tests.cpp \
