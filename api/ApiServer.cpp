@@ -36,6 +36,16 @@ static system_clock::time_point parseTimePoint(const std::string &timestamp)
     return system_clock::from_time_t(time_c);
 }
 
+static system_clock::time_point parseDate(const std::string &dateStr)
+{
+    return parseTimePoint(dateStr + " 00:00");
+}
+
+static system_clock::time_point parseMonth(const std::string &monthStr)
+{
+    return parseTimePoint(monthStr + "-01 00:00");
+}
+
 ApiServer::ApiServer(Model &model, int port)
     : model_(model), port_(port)
 {
@@ -46,6 +56,11 @@ void ApiServer::start()
 {
     std::cout << "Starting API server on port " << port_ << std::endl;
     server_.listen("0.0.0.0", port_);
+}
+
+void ApiServer::stop()
+{
+    server_.stop();
 }
 
 static json eventToJson(const Event &e)
@@ -87,6 +102,54 @@ void ApiServer::setupRoutes()
             auto ev = model_.getNextEvent();
             out["status"] = "ok";
             out["data"] = eventToJson(ev);
+        } catch (const std::exception &ex) {
+            out = json{{"status", "error"}, {"message", ex.what()}};
+        }
+        res.set_content(out.dump(), "application/json"); });
+
+    server_.Get(R"(/events/day/(\d{4}-\d{2}-\d{2}))", [this](const httplib::Request &req, httplib::Response &res)
+                {
+        std::cout << "GET /events/day/" << req.matches[1] << std::endl;
+        json out;
+        try {
+            auto day = parseDate(req.matches[1]);
+            auto events = model_.getEventsOnDay(day);
+            json data = json::array();
+            for (const auto &ev : events) data.push_back(eventToJson(ev));
+            out["status"] = "ok";
+            out["data"] = data;
+        } catch (const std::exception &ex) {
+            out = json{{"status", "error"}, {"message", ex.what()}};
+        }
+        res.set_content(out.dump(), "application/json"); });
+
+    server_.Get(R"(/events/week/(\d{4}-\d{2}-\d{2}))", [this](const httplib::Request &req, httplib::Response &res)
+                {
+        std::cout << "GET /events/week/" << req.matches[1] << std::endl;
+        json out;
+        try {
+            auto day = parseDate(req.matches[1]);
+            auto events = model_.getEventsInWeek(day);
+            json data = json::array();
+            for (const auto &ev : events) data.push_back(eventToJson(ev));
+            out["status"] = "ok";
+            out["data"] = data;
+        } catch (const std::exception &ex) {
+            out = json{{"status", "error"}, {"message", ex.what()}};
+        }
+        res.set_content(out.dump(), "application/json"); });
+
+    server_.Get(R"(/events/month/(\d{4}-\d{2}))", [this](const httplib::Request &req, httplib::Response &res)
+                {
+        std::cout << "GET /events/month/" << req.matches[1] << std::endl;
+        json out;
+        try {
+            auto month = parseMonth(req.matches[1]);
+            auto events = model_.getEventsInMonth(month);
+            json data = json::array();
+            for (const auto &ev : events) data.push_back(eventToJson(ev));
+            out["status"] = "ok";
+            out["data"] = data;
         } catch (const std::exception &ex) {
             out = json{{"status", "error"}, {"message", ex.what()}};
         }
