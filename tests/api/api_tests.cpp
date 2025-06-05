@@ -73,10 +73,27 @@ static void testMonthEndpoint() {
     th.join();
 }
 
+static void testCORSEnabled() {
+    Model m({});
+    ApiServer srv(m, 8088);
+    thread th(runServer, std::ref(srv));
+    this_thread::sleep_for(milliseconds(100));
+
+    httplib::Client cli("localhost", 8088);
+    auto res = cli.Options("/events");
+    assert(res && res->status == 200);
+    assert(res->get_header_value("Access-Control-Allow-Origin") == "*");
+    assert(!res->get_header_value("Access-Control-Allow-Methods").empty());
+
+    srv.stop();
+    th.join();
+}
+
 int main() {
     testDayEndpoint();
     testWeekEndpoint();
     testMonthEndpoint();
+    testCORSEnabled();
     cout << "API tests passed\n";
     return 0;
 }
