@@ -71,6 +71,53 @@ static void testControllerParseFormatTimeZones()
     }
 }
 
+static void testControllerCrossTimeZones()
+{
+    const char* prev = getenv("TZ");
+
+    // Event created in Chicago during DST
+    setenv("TZ", "America/Chicago", 1);
+    tzset();
+    auto tpSummer = Controller::parseTimePoint("2025-06-01 14:00");
+
+    // View the event from different locations
+    string chicago = Controller::formatTimePoint(tpSummer);
+    assert(chicago == "2025-06-01 14:00");
+
+    setenv("TZ", "Europe/London", 1);
+    tzset();
+    string london = Controller::formatTimePoint(tpSummer);
+    assert(london == "2025-06-01 20:00");
+
+    setenv("TZ", "Asia/Tokyo", 1);
+    tzset();
+    string tokyo = Controller::formatTimePoint(tpSummer);
+    assert(tokyo == "2025-06-02 04:00");
+
+    // Event created in Chicago outside of DST
+    setenv("TZ", "America/Chicago", 1);
+    tzset();
+    auto tpWinter = Controller::parseTimePoint("2025-01-15 14:00");
+    string chicagoW = Controller::formatTimePoint(tpWinter);
+    assert(chicagoW == "2025-01-15 14:00");
+
+    setenv("TZ", "Europe/London", 1);
+    tzset();
+    string londonW = Controller::formatTimePoint(tpWinter);
+    assert(londonW == "2025-01-15 20:00");
+
+    setenv("TZ", "Asia/Tokyo", 1);
+    tzset();
+    string tokyoW = Controller::formatTimePoint(tpWinter);
+    assert(tokyoW == "2025-01-16 05:00");
+
+    if (prev)
+        setenv("TZ", prev, 1);
+    else
+        unsetenv("TZ");
+    tzset();
+}
+
 static void testControllerPrintNextEvent()
 {
     Model m({});
@@ -102,6 +149,7 @@ int main()
 {
     testControllerParseFormat();
     testControllerParseFormatTimeZones();
+    testControllerCrossTimeZones();
     testControllerPrintNextEvent();
     testControllerPrintNextEventNone();
     cout << "Controller tests passed\n";
