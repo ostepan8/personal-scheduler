@@ -41,6 +41,10 @@ system_clock::time_point Controller::parseTimePoint(const string &timestamp)
     {
         throw std::runtime_error("Invalid timestamp format");
     }
+    // Let mktime determine daylight saving time so we don't misinterpret
+    // timestamps in locales that observe DST. Without this, events entered
+    // during DST could be shifted by one hour.
+    tm_buf.tm_isdst = -1;
     time_t time_c = std::mktime(&tm_buf);
     return system_clock::from_time_t(time_c);
 }
