@@ -1,5 +1,8 @@
 #include "Event.h"
 #include "recurrence/RecurrencePattern.h"
+#include <chrono>
+#include <vector>
+#include <string>
 class RecurringEvent : public Event
 {
 private:
