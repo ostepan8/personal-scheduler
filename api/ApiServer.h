@@ -11,6 +11,7 @@ class ApiServer
 public:
     ApiServer(Model &model, int port = 8080);
     void start();
+    void stop();
 
 private:
     Model &model_;
