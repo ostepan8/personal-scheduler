@@ -67,18 +67,18 @@ void Controller::printNextEvent()
     }
 }
 
-void Controller::addRecurringEvent(const string &id,
-                                   const string &title,
-                                   const string &desc,
-                                   system_clock::time_point start,
-                                   system_clock::duration dur,
-                                   RecurrencePattern &pattern)
+string Controller::addRecurringEvent(const string &title,
+                                     const string &desc,
+                                     system_clock::time_point start,
+                                     system_clock::duration dur,
+                                     RecurrencePattern &pattern)
 {
-    string idCopy = id;
+    string idCopy = model_.generateUniqueId();
     string descCopy = desc;
     string titleCopy = title;
     RecurringEvent e(idCopy, descCopy, titleCopy, start, dur, pattern);
     model_.addEvent(e);
+    return idCopy;
 }
 
 void Controller::run()
@@ -101,10 +101,8 @@ void Controller::run()
         iss >> cmd;
         if (cmd == "add")
         {
-            // Prompt for ID, title, description, hours-from-now:
-            cout << "Enter event ID: ";
-            string id;
-            getline(cin, id);
+            // Prompt for title, description, hours-from-now:
+            string id = model_.generateUniqueId();
             cout << "Enter title: ";
             string title;
             getline(cin, title);
@@ -126,10 +124,8 @@ void Controller::run()
         }
         else if (cmd == "addat")
         {
-            // Prompt for ID, title, description, timestamp
-            cout << "Enter event ID: ";
-            string id;
-            getline(cin, id);
+            // Prompt for title, description, timestamp
+            string id = model_.generateUniqueId();
             cout << "Enter title: ";
             string title;
             getline(cin, title);

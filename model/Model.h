@@ -17,6 +17,9 @@ private:
     std::vector<Event> events;
     IScheduleDatabase *db_;
 
+    // Check if an event ID already exists in the current list
+    bool eventExists(const std::string &id) const;
+
     // Re‐sort the internal list whenever it changes.
     void sortEvents();
 
@@ -41,4 +44,7 @@ public:
 
     // Remove by ID. Returns true if at least one Event with that ID was erased.
     bool removeEvent(const std::string &id);
+
+    // Generate a unique ID not currently in use
+    std::string generateUniqueId() const;
 };
