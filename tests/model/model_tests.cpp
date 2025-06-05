@@ -51,11 +51,34 @@ static void testModelGetEventsLimit()
     assert(cutoff.size() == 2);
 }
 
+static void testModelWithDailyRecurring()
+{
+    Model m({});
+    auto start = makeTime(2025,6,1,9);
+    DailyRecurrence rec(start, 1);
+    string id("R");
+    string desc("d");
+    string title("t");
+    RecurringEvent r(id, desc, title, start, hours(1), rec);
+    OneTimeEvent o("O","d","t", makeTime(2025,6,2,9), hours(1));
+    m.addEvent(o);
+    m.addEvent(r);
+
+    auto next = m.getNextEvent();
+    assert(next.getId() == "R");
+
+    auto evs = m.getEvents(-1, makeTime(2025,6,3,0));
+    assert(evs.size() == 2);
+    assert(evs[0].getId() == "R");
+    assert(evs[1].getId() == "O");
+}
+
 int main()
 {
     testModelAddAndRetrieve();
     testModelRemove();
     testModelGetEventsLimit();
+    testModelWithDailyRecurring();
     cout << "Model tests passed\n";
     return 0;
 }

@@ -1,6 +1,7 @@
 // Controller.cpp
 #include "Controller.h"
 #include "../model/OneTimeEvent.h"
+#include "../model/RecurringEvent.h"
 #include <iostream>
 #include <iomanip>
 #include <sstream>
@@ -64,6 +65,20 @@ void Controller::printNextEvent()
     {
         cout << "(no upcoming events)\n";
     }
+}
+
+void Controller::addRecurringEvent(const string &id,
+                                   const string &title,
+                                   const string &desc,
+                                   system_clock::time_point start,
+                                   system_clock::duration dur,
+                                   RecurrencePattern &pattern)
+{
+    string idCopy = id;
+    string descCopy = desc;
+    string titleCopy = title;
+    RecurringEvent e(idCopy, descCopy, titleCopy, start, dur, pattern);
+    model_.addEvent(e);
 }
 
 void Controller::run()
