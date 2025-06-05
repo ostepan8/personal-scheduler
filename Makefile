@@ -4,13 +4,14 @@ CXXFLAGS = -std=c++11 -Wall
 
 # Source files
 SRCS = main.cpp \
-	   controller/Controller.cpp \
+           controller/Controller.cpp \
        model/Model.cpp \
        model/OneTimeEvent.cpp \
        model/RecurringEvent.cpp \
        model/recurrence/DailyRecurrence.cpp \
        model/recurrence/WeeklyRecurrence.cpp \
-       view/TextualView.cpp
+       view/TextualView.cpp \
+       database/SQLiteScheduleDatabase.cpp
 
 # Object files (replace .cpp with .o)
 OBJS = $(SRCS:.cpp=.o)
@@ -20,7 +21,7 @@ TARGET = scheduler
 
 # Main build rule: link all object files into the executable
 $(TARGET): $(OBJS)
-	$(CXX) $(CXXFLAGS) $(OBJS) -o $(TARGET)
+	$(CXX) $(CXXFLAGS) $(OBJS) -lsqlite3 -o $(TARGET)
 
 # Rule to compile any .cpp into .o
 %.o: %.cpp
