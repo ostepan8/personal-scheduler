@@ -1,6 +1,8 @@
 #include "Model.h"
 #include <algorithm> // for std::sort, std::remove_if
 #include <stdexcept> // for std::runtime_error
+#include <random>
+#include <sstream>
 
 // Re‐sort internal list so that events are in ascending time order.
 void Model::sortEvents()
@@ -10,6 +12,27 @@ void Model::sortEvents()
               {
                   return a.getTime() < b.getTime();
               });
+}
+
+bool Model::eventExists(const std::string &id) const
+{
+    return std::any_of(events.begin(), events.end(), [&](const Event &ev) {
+        return ev.getId() == id;
+    });
+}
+
+std::string Model::generateUniqueId() const
+{
+    static std::mt19937_64 gen(std::random_device{}());
+    static std::uniform_int_distribution<uint64_t> dist;
+    std::string id;
+    do
+    {
+        std::stringstream ss;
+        ss << std::hex << dist(gen);
+        id = ss.str();
+    } while (eventExists(id));
+    return id;
 }
 
 // Constructor: optionally load events from a database, otherwise use provided list.
@@ -61,6 +84,10 @@ Event Model::getNextEvent() const
 
 bool Model::addEvent(Event &e)
 {
+    if (eventExists(e.getId()))
+    {
+        return false;
+    }
     events.push_back(e);
     sortEvents();
     if (db_)

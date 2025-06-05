@@ -92,22 +92,18 @@ static void testGetEventsLimitAndCutoff()
     assert(cutoff[2].getId() == "E2");
 }
 
-static void testDuplicatesAndSorting()
+static void testDuplicatesRejected()
 {
     Model m({});
-    FakePattern pat;
     OneTimeEvent a("A","d","t", makeTime(2025,6,1,8), hours(1));
     OneTimeEvent a2("A","d2","t2", makeTime(2025,6,1,9), hours(1));
-    string rid = "R"; string rd = "dr"; string rt = "tr";
-    RecurringEvent r(rid, rd, rt, makeTime(2025,5,31,8), hours(1), pat);
 
-    m.addEvent(a); m.addEvent(r); m.addEvent(a2); // duplicates allowed
+    assert(m.addEvent(a));
+    assert(!m.addEvent(a2));
 
     auto evs = m.getEvents(-1, makeTime(2025,6,2,0));
-    assert(evs.size() == 3);
-    assert(evs[0].getId() == "R");
-    assert(evs[1].getId() == "A");
-    assert(evs[2].getId() == "A");
+    assert(evs.size() == 1);
+    assert(evs[0].getId() == "A");
 }
 
 int main()
@@ -116,7 +112,7 @@ int main()
     testRemoveMixedEvents();
     testNextEventThrows();
     testGetEventsLimitAndCutoff();
-    testDuplicatesAndSorting();
+    testDuplicatesRejected();
     cout << "Comprehensive model tests passed\n";
     return 0;
 }

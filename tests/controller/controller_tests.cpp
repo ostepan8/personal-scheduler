@@ -155,7 +155,7 @@ static void testControllerAddRecurring()
 
     auto start = makeTime(2025,6,1,9);
     DailyRecurrence pattern(start, 1);
-    c.addRecurringEvent("R", "t", "d", start, hours(1), pattern);
+    std::string id = c.addRecurringEvent("t", "d", start, hours(1), pattern);
 
     OneTimeEvent o("O","d","t", makeTime(2025,6,2,9), hours(1));
     m.addEvent(o);
@@ -164,7 +164,7 @@ static void testControllerAddRecurring()
     auto old = cout.rdbuf(ss.rdbuf());
     c.printNextEvent();
     cout.rdbuf(old);
-    assert(ss.str().find("[R]") != string::npos);
+    assert(ss.str().find("[" + id + "]") != string::npos);
 }
 
 int main()
