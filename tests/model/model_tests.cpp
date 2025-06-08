@@ -6,6 +6,7 @@
 #include "../../model/recurrence/DailyRecurrence.h"
 #include "../../model/recurrence/WeeklyRecurrence.h"
 #include "../test_utils.h"
+#include "../../utils/TimeUtils.h"
 #include <memory>
 
 using namespace std;
@@ -163,19 +164,31 @@ static void testEventsTimeZones()
     const char *prevPtr = getenv("TZ");
     std::string prev = prevPtr ? std::string(prevPtr) : std::string();
     bool hadPrev = prevPtr != nullptr;
-    setenv("TZ", "Europe/Berlin", 1);
+    // Use a zone far ahead of UTC so local midnight is well before UTC midnight
+    setenv("TZ", "Australia/Sydney", 1);
     tzset();
 
     Model m({});
-    OneTimeEvent e("1","d","t", makeTime(2025,6,1,9), hours(1));
+    using TimeUtils::parseTimePoint;
+    using TimeUtils::parseDate;
+
+    // Event just after local midnight
+    auto evTime = parseTimePoint("2025-06-01 00:30");
+    OneTimeEvent e("1","d","t", evTime, hours(1));
     m.addEvent(e);
 
-    auto d = m.getEventsOnDay(makeTime(2025,6,1,0));
+    auto queryDay = parseDate("2025-06-01");
+    auto d = m.getEventsOnDay(queryDay);
     assert(d.size() == 1);
-    auto w = m.getEventsInWeek(makeTime(2025,6,1,0));
+    auto w = m.getEventsInWeek(queryDay);
     assert(w.size() == 1);
-    auto mo = m.getEventsInMonth(makeTime(2025,6,1,0));
+    auto mo = m.getEventsInMonth(queryDay);
     assert(mo.size() == 1);
+
+    // Previous day should have no events
+    auto prevDay = parseDate("2025-05-31");
+    auto prevList = m.getEventsOnDay(prevDay);
+    assert(prevList.empty());
 
     if (hadPrev)
         setenv("TZ", prev.c_str(), 1);
