@@ -10,6 +10,7 @@
   Controller coordinates a Model and a View.  It runs a simple CLI loop:
     - "add" prompts for title, description, and hours-from-now → adds OneTimeEvent with an auto-generated ID.
     - "addat" prompts for title, description, and timestamp → adds OneTimeEvent at a specific time with an auto-generated ID.
+    - "addrec" prompts for recurrence details → adds a RecurringEvent.
     - "remove" prompts for ID → removes that event.
     - "list" → asks View to render current Model state.
     - "next" → prints the next upcoming event.
