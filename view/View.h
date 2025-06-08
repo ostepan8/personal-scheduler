@@ -27,4 +27,7 @@ public:
     // Every concrete View must implement this method.
     // It should pull events from model_ and display them.
     virtual void render() = 0;
+
+    // Display the provided list of events.
+    virtual void renderEvents(const std::vector<Event> &events) = 0;
 };

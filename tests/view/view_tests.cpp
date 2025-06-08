@@ -29,9 +29,25 @@ static void testViewShowsRecurringFlag()
     assert(out.find("(recurring)") != string::npos);
 }
 
+static void testRenderEventsList()
+{
+    Model m;
+    OneTimeEvent o("1","d","t", makeTime(2025,6,1,9), hours(1));
+    m.addEvent(o);
+    TextualView v(m);
+    auto list = m.getEventsOnDay(makeTime(2025,6,1,0));
+    stringstream ss;
+    auto old = cout.rdbuf(ss.rdbuf());
+    v.renderEvents(list);
+    cout.rdbuf(old);
+    string out = ss.str();
+    assert(out.find("[1]") != string::npos);
+}
+
 int main()
 {
     testViewShowsRecurringFlag();
+    testRenderEventsList();
     cout << "View tests passed\n";
     return 0;
 }

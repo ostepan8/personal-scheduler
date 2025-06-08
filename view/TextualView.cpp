@@ -13,7 +13,11 @@ void TextualView::render()
     // Fetch “everything” by using a far‑future cutoff.
     auto farFuture = std::chrono::system_clock::now() + std::chrono::hours(24 * 365);
     auto events = model_.getEvents(-1, farFuture);
+    renderEvents(events);
+}
 
+void TextualView::renderEvents(const std::vector<Event> &events)
+{
     if (events.empty())
     {
         std::cout << "(no scheduled events)\n";
