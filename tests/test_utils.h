@@ -25,6 +25,7 @@ class StubView : public View
 public:
     explicit StubView(const ReadOnlyModel &m) : View(m) {}
     void render() override {}
+    void renderEvents(const std::vector<Event>&) override {}
 };
 
 class FakePattern : public RecurrencePattern

@@ -17,4 +17,7 @@ public:
 
     // Override: fetch from model_ and print all events
     void render() override;
+
+    // Print a provided list of events
+    void renderEvents(const std::vector<Event> &events) override;
 };
