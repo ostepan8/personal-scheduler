@@ -7,6 +7,7 @@
 #include "../../model/recurrence/WeeklyRecurrence.h"
 #include "../../utils/WeekDay.h"
 #include "../test_utils.h"
+#include <memory>
 
 using namespace std;
 using namespace chrono;
@@ -24,17 +25,17 @@ static void testOneTimeEvent()
 
 static void testRecurringEventDelegation()
 {
-    FakePattern pat;
-    pat.dueResult = true;
-    pat.nextResult.push_back(makeTime(2030,1,1,8));
+    auto pat = std::make_shared<FakePattern>();
+    pat->dueResult = true;
+    pat->nextResult.push_back(makeTime(2030,1,1,8));
     string id = "R";
     string desc = "d";
     string title = "t";
     RecurringEvent ev(id, desc, title, makeTime(2030,1,1,8), hours(1), pat);
     assert(ev.isDueOn(makeTime(2030,1,1,8)));
-    assert(pat.isDueCalled);
+    assert(pat->isDueCalled);
     auto nxt = ev.getNextNOccurrences(makeTime(2029,12,31,0), 1);
-    assert(pat.getNextCalled);
+    assert(pat->getNextCalled);
     assert(nxt.size() == 1 && nxt[0] == makeTime(2030,1,1,8));
 }
 

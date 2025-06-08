@@ -15,7 +15,7 @@ static void runServer(ApiServer &srv) {
 }
 
 static void testDayEndpoint() {
-    Model m({});
+    Model m;
     OneTimeEvent e1("1","d","t", makeTime(2025,6,1,9), hours(1));
     m.addEvent(e1);
     ApiServer srv(m, 8085);
@@ -34,7 +34,7 @@ static void testDayEndpoint() {
 }
 
 static void testWeekEndpoint() {
-    Model m({});
+    Model m;
     OneTimeEvent e1("1","d","t", makeTime(2025,6,2,9), hours(1)); // Monday
     OneTimeEvent e2("2","d","t", makeTime(2025,6,8,10), hours(1)); // Sunday
     m.addEvent(e1); m.addEvent(e2);
@@ -54,7 +54,7 @@ static void testWeekEndpoint() {
 }
 
 static void testMonthEndpoint() {
-    Model m({});
+    Model m;
     OneTimeEvent e1("1","d","t", makeTime(2025,6,2,9), hours(1));
     OneTimeEvent e2("2","d","t", makeTime(2025,7,1,9), hours(1));
     m.addEvent(e1); m.addEvent(e2);
@@ -74,7 +74,7 @@ static void testMonthEndpoint() {
 }
 
 static void testCORSEnabled() {
-    Model m({});
+    Model m;
     ApiServer srv(m, 8088);
     thread th(runServer, std::ref(srv));
     this_thread::sleep_for(milliseconds(100));

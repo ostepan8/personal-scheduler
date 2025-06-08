@@ -6,13 +6,14 @@
 #include "../../model/recurrence/DailyRecurrence.h"
 #include "../../model/recurrence/WeeklyRecurrence.h"
 #include "../test_utils.h"
+#include <memory>
 
 using namespace std;
 using namespace chrono;
 
 static void testModelAddAndRetrieve()
 {
-    Model m({});
+    Model m;
     OneTimeEvent e1("1","d1","t1", makeTime(2025,1,2,9), hours(1));
     OneTimeEvent e2("2","d2","t2", makeTime(2025,1,1,8), hours(1));
     m.addEvent(e1);
@@ -27,7 +28,7 @@ static void testModelAddAndRetrieve()
 
 static void testModelRemove()
 {
-    Model m({});
+    Model m;
     OneTimeEvent e1("1","d1","t1", makeTime(2025,1,1,9), hours(1));
     OneTimeEvent e2("2","d2","t2", makeTime(2025,1,2,9), hours(1));
     m.addEvent(e1);
@@ -40,7 +41,7 @@ static void testModelRemove()
 
 static void testModelGetEventsLimit()
 {
-    Model m({});
+    Model m;
     OneTimeEvent e1("1","d1","t1", makeTime(2025,1,1,8), hours(1));
     OneTimeEvent e2("2","d2","t2", makeTime(2025,1,2,8), hours(1));
     OneTimeEvent e3("3","d3","t3", makeTime(2025,1,3,8), hours(1));
@@ -53,9 +54,9 @@ static void testModelGetEventsLimit()
 
 static void testModelWithDailyRecurring()
 {
-    Model m({});
+    Model m;
     auto start = makeTime(2025,6,1,9);
-    DailyRecurrence rec(start, 1);
+    auto rec = std::make_shared<DailyRecurrence>(start, 1);
     string id("R");
     string desc("d");
     string title("t");
@@ -75,7 +76,7 @@ static void testModelWithDailyRecurring()
 
 static void testEventsOnDay()
 {
-    Model m({});
+    Model m;
     OneTimeEvent e1("1","d","t", makeTime(2025,6,1,8), hours(1));
     OneTimeEvent e2("2","d","t", makeTime(2025,6,1,12), hours(1));
     OneTimeEvent e3("3","d","t", makeTime(2025,6,2,9), hours(1));
@@ -88,7 +89,7 @@ static void testEventsOnDay()
 
 static void testEventsInWeek()
 {
-    Model m({});
+    Model m;
     OneTimeEvent e1("1","d","t", makeTime(2025,6,2,9), hours(1)); // Monday
     OneTimeEvent e2("2","d","t", makeTime(2025,6,5,9), hours(1)); // Thursday
     OneTimeEvent e3("3","d","t", makeTime(2025,6,9,9), hours(1)); // next Monday
@@ -101,7 +102,7 @@ static void testEventsInWeek()
 
 static void testEventsInMonth()
 {
-    Model m({});
+    Model m;
     OneTimeEvent e1("1","d","t", makeTime(2025,6,2,9), hours(1));
     OneTimeEvent e2("2","d","t", makeTime(2025,7,1,9), hours(1));
     OneTimeEvent e3("3","d","t", makeTime(2025,6,20,9), hours(1));
