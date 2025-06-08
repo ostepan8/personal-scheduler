@@ -4,6 +4,8 @@
 #include <ctime>
 #include "../../model/recurrence/DailyRecurrence.h"
 #include "../../model/recurrence/WeeklyRecurrence.h"
+#include "../../model/recurrence/MonthlyRecurrence.h"
+#include "../../model/recurrence/YearlyRecurrence.h"
 #include "../../utils/WeekDay.h"
 
 using namespace std;
@@ -69,10 +71,47 @@ void testWeeklyRecurrence()
     assert(none.empty());
 }
 
+void testMonthlyRecurrence()
+{
+    auto start = makeTime(2024,1,31,9);
+    MonthlyRecurrence rec(start, 1, 4); // every month
+
+    auto all = rec.getNextNOccurrences(start - seconds(1), 5);
+    assert(all.size() == 4);
+    assert(all[0] == makeTime(2024,1,31,9));
+    // Feb 2024 has 29 days (leap year)
+    assert(all[1] == makeTime(2024,2,29,9));
+    assert(all[2] == makeTime(2024,3,31,9));
+    // April has 30 days -> adjust
+    assert(all[3] == makeTime(2024,4,30,9));
+
+    assert(rec.isDueOn(makeTime(2024,4,30,9)));
+    assert(!rec.isDueOn(makeTime(2024,4,29,9)));
+}
+
+void testYearlyRecurrence()
+{
+    auto start = makeTime(2024,2,29,10);
+    YearlyRecurrence rec(start, 1, 5);
+
+    auto all = rec.getNextNOccurrences(start - seconds(1), 5);
+    assert(all.size() == 5);
+    assert(all[0] == makeTime(2024,2,29,10));
+    assert(all[1] == makeTime(2025,2,28,10));
+    assert(all[2] == makeTime(2026,2,28,10));
+    assert(all[3] == makeTime(2027,2,28,10));
+    assert(all[4] == makeTime(2028,2,29,10));
+
+    assert(rec.isDueOn(makeTime(2025,2,28,10)));
+    assert(!rec.isDueOn(makeTime(2025,2,27,10)));
+}
+
 int main()
 {
     testDailyRecurrence();
     testWeeklyRecurrence();
+    testMonthlyRecurrence();
+    testYearlyRecurrence();
     std::cout << "All recurrence tests passed\n";
     return 0;
 }
