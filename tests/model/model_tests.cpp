@@ -74,6 +74,26 @@ static void testModelWithDailyRecurring()
     assert(evs[1].getId() == "O");
 }
 
+static void testNextNWithRecurring()
+{
+    Model m;
+    auto start = makeTime(2025,6,1,8);
+    auto rec = std::make_shared<DailyRecurrence>(start, 1);
+    RecurringEvent wake("W","wake","Wake", start, hours(1), rec);
+    OneTimeEvent ball("B","play","Ball", makeTime(2025,6,5,12), hours(2));
+    m.addEvent(wake);
+    m.addEvent(ball);
+
+    auto next = m.getNextEvent();
+    assert(next.getId() == "W");
+
+    auto list = m.getNextNEvents(6);
+    assert(list.size() == 6);
+    for(int i=0;i<5;i++)
+        assert(list[i].getTime() == start + hours(24*i));
+    assert(list[5].getId() == "B");
+}
+
 static void testEventsOnDay()
 {
     Model m;
@@ -143,6 +163,7 @@ int main()
     testModelRemove();
     testModelGetEventsLimit();
     testModelWithDailyRecurring();
+    testNextNWithRecurring();
     testEventsOnDay();
     testEventsInWeek();
     testEventsInMonth();

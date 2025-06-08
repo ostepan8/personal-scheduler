@@ -34,6 +34,8 @@ public:
               std::chrono::system_clock::time_point endDate) const override;
 
     Event getNextEvent() const override;
+    // Return the next n upcoming event occurrences expanding recurring events.
+    std::vector<Event> getNextNEvents(int n) const;
 
     // Additional query methods
     std::vector<Event> getEventsOnDay(std::chrono::system_clock::time_point day) const;
