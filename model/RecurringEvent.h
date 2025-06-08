@@ -16,5 +16,6 @@ public:
     vector<chrono::system_clock::time_point> getNextNOccurrences(chrono::system_clock::time_point after,
                                                                  int n) const;
     bool isDueOn(chrono::system_clock::time_point date) const;
+    std::shared_ptr<RecurrencePattern> getRecurrencePattern() const { return recurrencePattern; }
     std::unique_ptr<Event> clone() const override { return std::make_unique<RecurringEvent>(*this); }
 };
