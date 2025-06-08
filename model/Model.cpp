@@ -6,20 +6,11 @@
 #include <sstream>
 #include <memory>
 
-// Re‐sort internal list so that events are in ascending time order.
-void Model::sortEvents()
-{
-    std::sort(events.begin(), events.end(),
-              [](const std::unique_ptr<Event> &a, const std::unique_ptr<Event> &b)
-              {
-                  return a->getTime() < b->getTime();
-              });
-}
 
 bool Model::eventExists(const std::string &id) const
 {
-    return std::any_of(events.begin(), events.end(), [&](const std::unique_ptr<Event> &ev) {
-        return ev->getId() == id;
+    return std::any_of(events.begin(), events.end(), [&](const auto &pair) {
+        return pair.second->getId() == id;
     });
 }
 
@@ -28,6 +19,7 @@ std::string Model::generateUniqueId() const
     static std::mt19937_64 gen(std::random_device{}());
     static std::uniform_int_distribution<uint64_t> dist;
     std::string id;
+    std::lock_guard<std::mutex> lock(mutex_);
     do
     {
         std::stringstream ss;
@@ -46,10 +38,9 @@ Model::Model(IScheduleDatabase *db)
         auto loaded = db_->getAllEvents();
         for (auto &e : loaded)
         {
-            events.push_back(std::move(e));
+            events.emplace(e->getTime(), std::move(e));
         }
     }
-    sortEvents();
 }
 
 // ReadOnlyModel override: return up to maxOccurrences events occurring before endDate.
@@ -58,12 +49,12 @@ Model::getEvents(int maxOccurrences,
                  std::chrono::system_clock::time_point endDate) const
 {
     std::vector<Event> result;
+    std::lock_guard<std::mutex> lock(mutex_);
     result.reserve(events.size());
 
-    for (const auto &ptr : events)
+    for (const auto &kv : events)
     {
-        const Event &e = *ptr;
-        // Stop once we exceed endDate
+        const Event &e = *kv.second;
         if (e.getTime() > endDate)
         {
             break;
@@ -82,17 +73,19 @@ Model::getEvents(int maxOccurrences,
 std::vector<Event> Model::getNextNEvents(int n) const
 {
     std::vector<Event> occurrences;
-    if (events.empty() || n <= 0)
+    if (n <= 0)
         return occurrences;
 
-    // Generate occurrences strictly after the current time so past events do not
-    // appear in the results.
     auto now = std::chrono::system_clock::now();
     auto start = now - std::chrono::seconds(1);
 
-    for (const auto &ptr : events)
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (events.empty())
+        return occurrences;
+
+    for (const auto &kv : events)
     {
-        const Event &e = *ptr;
+        const Event &e = *kv.second;
         if (!e.isRecurring())
         {
             if (e.getTime() > now)
@@ -102,7 +95,7 @@ std::vector<Event> Model::getNextNEvents(int n) const
         }
         else
         {
-            const auto *re = dynamic_cast<const RecurringEvent *>(ptr.get());
+            const auto *re = dynamic_cast<const RecurringEvent *>(kv.second.get());
             if (!re)
                 continue;
 
@@ -138,12 +131,12 @@ Event Model::getNextEvent() const
 
 bool Model::addEvent(const Event &e)
 {
+    std::lock_guard<std::mutex> lock(mutex_);
     if (eventExists(e.getId()))
     {
         return false;
     }
-    events.push_back(e.clone());
-    sortEvents();
+    events.emplace(e.getTime(), e.clone());
     if (db_)
     {
         db_->addEvent(e);
@@ -158,13 +151,15 @@ bool Model::removeEvent(const Event &e)
 
 bool Model::removeEvent(const std::string &id)
 {
+    std::lock_guard<std::mutex> lock(mutex_);
     auto beforeSize = events.size();
-    events.erase(std::remove_if(events.begin(), events.end(),
-                                [&](const std::unique_ptr<Event> &ev)
-                                {
-                                    return ev->getId() == id;
-                                }),
-                 events.end());
+    for (auto it = events.begin(); it != events.end(); )
+    {
+        if (it->second->getId() == id)
+            it = events.erase(it);
+        else
+            ++it;
+    }
     bool removed = events.size() < beforeSize;
     if (removed && db_)
     {
@@ -198,9 +193,10 @@ std::vector<Event> Model::getEventsOnDay(std::chrono::system_clock::time_point d
     auto start = startOfDay(day);
     auto end = start + std::chrono::hours(24);
     std::vector<Event> result;
-    for (const auto &ptr : events)
+    std::lock_guard<std::mutex> lock(mutex_);
+    for (const auto &kv : events)
     {
-        const Event &e = *ptr;
+        const Event &e = *kv.second;
         if (e.getTime() < start)
             continue;
         if (e.getTime() >= end)
@@ -224,9 +220,10 @@ std::vector<Event> Model::getEventsInWeek(std::chrono::system_clock::time_point 
     auto start = startOfDay(day) - std::chrono::hours(24 * diff);
     auto end = start + std::chrono::hours(24 * 7);
     std::vector<Event> result;
-    for (const auto &ptr : events)
+    std::lock_guard<std::mutex> lock(mutex_);
+    for (const auto &kv : events)
     {
-        const Event &e = *ptr;
+        const Event &e = *kv.second;
         if (e.getTime() < start)
             continue;
         if (e.getTime() >= end)
@@ -264,9 +261,10 @@ std::vector<Event> Model::getEventsInMonth(std::chrono::system_clock::time_point
     auto end = std::chrono::system_clock::from_time_t(end_t);
 
     std::vector<Event> result;
-    for (const auto &ptr : events)
+    std::lock_guard<std::mutex> lock(mutex_);
+    for (const auto &kv : events)
     {
-        const Event &e = *ptr;
+        const Event &e = *kv.second;
         if (e.getTime() < start)
             continue;
         if (e.getTime() >= end)
