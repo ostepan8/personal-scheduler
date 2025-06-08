@@ -44,9 +44,9 @@ Model::Model(IScheduleDatabase *db)
     if (db_)
     {
         auto loaded = db_->getAllEvents();
-        for (const auto &e : loaded)
+        for (auto &e : loaded)
         {
-            events.push_back(e.clone());
+            events.push_back(std::move(e));
         }
     }
     sortEvents();

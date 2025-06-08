@@ -2,6 +2,7 @@
 #include <vector>
 #include <chrono>
 #include <algorithm>
+#include <string>
 #include "../../utils/WeekDay.h"
 // This pattern handles the every x weeks on yDay and zDay walk the dalk.
 // For example, every week on Tuesday and Thursday, I have Object Oriented Design Class.
@@ -26,6 +27,12 @@ public:
         chrono::system_clock::time_point after, int n) const override;
 
     bool isDueOn(chrono::system_clock::time_point date) const override;
+
+    std::string type() const override { return "weekly"; }
+    int getInterval() const { return repeatingInterval; }
+    const std::vector<Weekday> &getDaysOfWeek() const { return daysOfTheWeek; }
+    int getMaxOccurrences() const { return maxOccurrences; }
+    chrono::system_clock::time_point getEndDate() const { return endDate; }
 
     ~WeeklyRecurrence() override = default;
 };

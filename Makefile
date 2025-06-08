@@ -117,7 +117,17 @@ API_TEST_SRCS = tests/api/api_tests.cpp \
 API_TEST_OBJS = $(API_TEST_SRCS:.cpp=.o)
 API_TEST_TARGET = api_tests
 
-TEST_TARGETS = $(RECURRENCE_TEST_TARGET) $(EVENT_TEST_TARGET) $(MODEL_TEST_TARGET) $(MODEL_COMPREHENSIVE_TEST_TARGET) $(CONTROLLER_TEST_TARGET) $(VIEW_TEST_TARGET) $(API_TEST_TARGET)
+DATABASE_TEST_SRCS = tests/database/database_tests.cpp \
+                     database/SQLiteScheduleDatabase.cpp \
+                     model/Model.cpp \
+                     model/OneTimeEvent.cpp \
+                     model/RecurringEvent.cpp \
+                     model/recurrence/DailyRecurrence.cpp \
+                     model/recurrence/WeeklyRecurrence.cpp
+DATABASE_TEST_OBJS = $(DATABASE_TEST_SRCS:.cpp=.o)
+DATABASE_TEST_TARGET = database_tests
+
+TEST_TARGETS = $(RECURRENCE_TEST_TARGET) $(EVENT_TEST_TARGET) $(MODEL_TEST_TARGET) $(MODEL_COMPREHENSIVE_TEST_TARGET) $(CONTROLLER_TEST_TARGET) $(VIEW_TEST_TARGET) $(API_TEST_TARGET) $(DATABASE_TEST_TARGET)
 
 test: $(TEST_TARGETS)
 	./run_all_tests.sh
@@ -141,5 +151,8 @@ $(VIEW_TEST_TARGET): $(VIEW_TEST_OBJS)
 
 $(API_TEST_TARGET): $(API_TEST_OBJS)
 	$(CXX) $(CXXFLAGS) $(API_TEST_OBJS) -pthread -o $@
+
+$(DATABASE_TEST_TARGET): $(DATABASE_TEST_OBJS)
+	$(CXX) $(CXXFLAGS) $(DATABASE_TEST_OBJS) -lsqlite3 -o $@
 
 .PHONY: test
