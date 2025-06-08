@@ -12,7 +12,7 @@ public:
 
     bool addEvent(const Event &e) override;
     bool removeEvent(const std::string &id) override;
-    std::vector<Event> getAllEvents() const override;
+    std::vector<std::unique_ptr<Event>> getAllEvents() const override;
 
 private:
     std::unique_ptr<sqlite3, decltype(&sqlite3_close)> db_;

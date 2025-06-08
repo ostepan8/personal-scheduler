@@ -47,4 +47,6 @@ public:
         isDueCalled = true;
         return dueResult;
     }
+
+    std::string type() const override { return "fake"; }
 };
