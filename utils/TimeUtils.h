@@ -1,23 +1,17 @@
 #pragma once
 #include <string>
 #include <chrono>
-#include <iomanip>
+#include <format>
 #include <sstream>
-#include <ctime>
+#include <cstdlib>
 
 namespace TimeUtils {
 inline std::string formatTimePoint(const std::chrono::system_clock::time_point &tp) {
     using namespace std::chrono;
-    time_t t_c = system_clock::to_time_t(tp);
-    std::tm tm_buf;
-#if defined(_MSC_VER)
-    localtime_s(&tm_buf, &t_c);
-#else
-    localtime_r(&t_c, &tm_buf);
-#endif
-    char buf[32];
-    strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M", &tm_buf);
-    return std::string(buf);
+    const char* env = std::getenv("TZ");
+    auto zone = env ? locate_zone(env) : current_zone();
+    zoned_time zt{zone, tp};
+    return std::format("{:%Y-%m-%d %H:%M}", zt);
 }
 
 inline std::chrono::system_clock::time_point parseTimePoint(const std::string &timestamp) {
@@ -27,9 +21,11 @@ inline std::chrono::system_clock::time_point parseTimePoint(const std::string &t
     ss >> std::get_time(&tm_buf, "%Y-%m-%d %H:%M");
     if (ss.fail())
         throw std::runtime_error("Invalid timestamp format");
-    tm_buf.tm_isdst = -1;
-    time_t time_c = std::mktime(&tm_buf);
-    return system_clock::from_time_t(time_c);
+    year_month_day ymd{year{tm_buf.tm_year + 1900}, month{static_cast<unsigned>(tm_buf.tm_mon + 1)}, day{static_cast<unsigned>(tm_buf.tm_mday)}};
+    auto local = local_days{ymd} + hours{tm_buf.tm_hour} + minutes{tm_buf.tm_min} + seconds{tm_buf.tm_sec};
+    const char* env = std::getenv("TZ");
+    auto zone = env ? locate_zone(env) : current_zone();
+    return zone->to_sys(local);
 }
 
 inline std::chrono::system_clock::time_point parseDate(const std::string &dateStr) {

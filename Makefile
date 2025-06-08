@@ -1,6 +1,6 @@
 # Compiler and flags
 CXX      = g++
-CXXFLAGS = -std=c++14 -Wall -Iapi -Iexternal/json
+CXXFLAGS = -std=c++20 -Wall -Iapi -Iexternal/json
 
 
 

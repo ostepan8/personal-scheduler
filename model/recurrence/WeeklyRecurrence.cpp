@@ -1,19 +1,17 @@
 #include "WeeklyRecurrence.h"
 #include "../../utils/WeekDay.h"
 #include <algorithm>
+#include <chrono>
 
 namespace
 {
 Weekday weekdayFromTimePoint(chrono::system_clock::time_point tp)
 {
-    time_t t_c = chrono::system_clock::to_time_t(tp);
-    tm tm_buf;
-#if defined(_MSC_VER)
-    localtime_s(&tm_buf, &t_c);
-#else
-    localtime_r(&t_c, &tm_buf);
-#endif
-    return static_cast<Weekday>(tm_buf.tm_wday);
+    using namespace chrono;
+    auto z = current_zone();
+    zoned_time zt{z, tp};
+    weekday wd{floor<days>(zt.get_local_time())};
+    return static_cast<Weekday>(wd.c_encoding());
 }
 }
 

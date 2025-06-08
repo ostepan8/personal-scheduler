@@ -168,25 +168,13 @@ bool Model::removeEvent(const std::string &id)
     return removed;
 }
 
-// Return the start of the day in the user's local time zone
 static std::chrono::system_clock::time_point startOfLocalDay(std::chrono::system_clock::time_point tp)
 {
-    time_t t = std::chrono::system_clock::to_time_t(tp);
-    std::tm tm_buf;
-#if defined(_MSC_VER)
-    localtime_s(&tm_buf, &t);
-#else
-    localtime_r(&t, &tm_buf);
-#endif
-    tm_buf.tm_hour = 0;
-    tm_buf.tm_min = 0;
-    tm_buf.tm_sec = 0;
-#if defined(_MSC_VER)
-    time_t start_t = mktime(&tm_buf);
-#else
-    time_t start_t = mktime(&tm_buf);
-#endif
-    return std::chrono::system_clock::from_time_t(start_t);
+    using namespace std::chrono;
+    auto zone = current_zone();
+    zoned_time zt{zone, tp};
+    auto local = floor<days>(zt.get_local_time());
+    return zone->to_sys(local);
 }
 
 std::vector<Event> Model::getEventsOnDay(std::chrono::system_clock::time_point day) const
@@ -212,9 +200,9 @@ std::vector<Event> Model::getEventsInWeek(std::chrono::system_clock::time_point 
     time_t t = std::chrono::system_clock::to_time_t(day);
     std::tm tm_buf;
 #if defined(_MSC_VER)
-    localtime_s(&tm_buf, &t);
+    gmtime_s(&tm_buf, &t);
 #else
-    localtime_r(&t, &tm_buf);
+    gmtime_r(&t, &tm_buf);
 #endif
     int wday = tm_buf.tm_wday; // 0=Sunday
     int diff = (wday + 6) % 7; // days since Monday
@@ -239,25 +227,25 @@ std::vector<Event> Model::getEventsInMonth(std::chrono::system_clock::time_point
     time_t t = std::chrono::system_clock::to_time_t(day);
     std::tm tm_buf;
 #if defined(_MSC_VER)
-    localtime_s(&tm_buf, &t);
+    gmtime_s(&tm_buf, &t);
 #else
-    localtime_r(&t, &tm_buf);
+    gmtime_r(&t, &tm_buf);
 #endif
     tm_buf.tm_mday = 1;
     tm_buf.tm_hour = 0;
     tm_buf.tm_min = 0;
     tm_buf.tm_sec = 0;
 #if defined(_MSC_VER)
-    time_t start_t = mktime(&tm_buf);
+    time_t start_t = _mkgmtime(&tm_buf);
 #else
-    time_t start_t = mktime(&tm_buf);
+    time_t start_t = timegm(&tm_buf);
 #endif
     auto start = std::chrono::system_clock::from_time_t(start_t);
     tm_buf.tm_mon += 1;
 #if defined(_MSC_VER)
-    time_t end_t = mktime(&tm_buf);
+    time_t end_t = _mkgmtime(&tm_buf);
 #else
-    time_t end_t = mktime(&tm_buf);
+    time_t end_t = timegm(&tm_buf);
 #endif
     auto end = std::chrono::system_clock::from_time_t(end_t);
 
