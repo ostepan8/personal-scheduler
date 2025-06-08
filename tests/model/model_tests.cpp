@@ -160,7 +160,9 @@ static void testEventsInMonth()
 
 static void testEventsTimeZones()
 {
-    const char *prev = getenv("TZ");
+    const char *prevPtr = getenv("TZ");
+    std::string prev = prevPtr ? std::string(prevPtr) : std::string();
+    bool hadPrev = prevPtr != nullptr;
     setenv("TZ", "Europe/Berlin", 1);
     tzset();
 
@@ -175,8 +177,8 @@ static void testEventsTimeZones()
     auto mo = m.getEventsInMonth(makeTime(2025,6,1,0));
     assert(mo.size() == 1);
 
-    if (prev)
-        setenv("TZ", prev, 1);
+    if (hadPrev)
+        setenv("TZ", prev.c_str(), 1);
     else
         unsetenv("TZ");
     tzset();
