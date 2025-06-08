@@ -34,6 +34,10 @@ void TextualView::render()
         strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M", &tm_buf);
 
         std::cout << "[" << e.getId() << "] \""
-                  << e.getTitle() << "\" @ " << buf << "\n";
+                  << e.getTitle() << "\" @ " << buf;
+        if (e.isRecurring())
+            std::cout << " (recurring)";
+        std::cout << "\n";
     }
 }
+
