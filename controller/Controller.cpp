@@ -185,8 +185,7 @@ void Controller::run()
     commands["nextn"] = [&]() {
         cout << "Enter number of events: ";
         int n; cin >> n; cin.ignore(numeric_limits<streamsize>::max(), '\n');
-        auto end = system_clock::now() + hours(24*365);
-        auto evs = model_.getEvents(n, end);
+        auto evs = model_.getNextNEvents(n);
         view_.renderEvents(evs);
     };
 
