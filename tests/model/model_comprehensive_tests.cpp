@@ -15,19 +15,20 @@ static void testAddMixedEvents()
 {
     Model m;
     auto pat = std::make_shared<FakePattern>();
-    OneTimeEvent o1("O1","d1","t1", makeTime(2025,6,1,8), hours(1));
-    OneTimeEvent o2("O2","d2","t2", makeTime(2025,6,2,8), hours(1));
+    auto now = chrono::system_clock::now();
+    OneTimeEvent o1("O1","d1","t1", now + hours(1), hours(1));
+    OneTimeEvent o2("O2","d2","t2", now + hours(2), hours(1));
     string r1id = "R1"; string r1d = "dr1"; string r1t = "tr1";
     string r2id = "R2"; string r2d = "dr2"; string r2t = "tr2";
-    RecurringEvent r1(r1id, r1d, r1t, makeTime(2025,6,2,9), hours(1), pat);
-    RecurringEvent r2(r2id, r2d, r2t, makeTime(2025,6,3,9), hours(1), pat);
+    RecurringEvent r1(r1id, r1d, r1t, now + hours(3), hours(1), pat);
+    RecurringEvent r2(r2id, r2d, r2t, now + hours(4), hours(1), pat);
 
     m.addEvent(r2); // add out of order on purpose
     m.addEvent(o1);
     m.addEvent(r1);
     m.addEvent(o2);
 
-    auto evs = m.getEvents(-1, makeTime(2025,6,4,0));
+    auto evs = m.getEvents(-1, now + hours(5));
     assert(evs.size() == 4);
     assert(evs[0].getId() == "O1");
     assert(evs[1].getId() == "O2");

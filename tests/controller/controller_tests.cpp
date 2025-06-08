@@ -124,7 +124,8 @@ static void testControllerCrossTimeZones()
 static void testControllerPrintNextEvent()
 {
     Model m;
-    OneTimeEvent e1("1","d","t", makeTime(2025,6,1,9), hours(1));
+    auto now = chrono::system_clock::now();
+    OneTimeEvent e1("1","d","t", now + chrono::hours(1), hours(1));
     m.addEvent(e1);
     StubView v(m);
     Controller c(m,v);
@@ -154,11 +155,12 @@ static void testControllerAddRecurring()
     StubView v(m);
     Controller c(m,v);
 
-    auto start = makeTime(2025,6,1,9);
+    auto now = chrono::system_clock::now();
+    auto start = now + chrono::hours(1);
     auto pattern = std::make_shared<DailyRecurrence>(start, 1);
     std::string id = c.addRecurringEvent("t", "d", start, hours(1), pattern);
 
-    OneTimeEvent o("O","d","t", makeTime(2025,6,2,9), hours(1));
+    OneTimeEvent o("O","d","t", start + chrono::hours(24), hours(1));
     m.addEvent(o);
 
     std::ostringstream ss;
