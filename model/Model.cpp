@@ -77,19 +77,22 @@ Model::getEvents(int maxOccurrences,
     return result;
 }
 
-// ReadOnlyModel override: return the very next (earliest) event.
-Event Model::getNextEvent() const
+// Helper: return the next n upcoming occurrences across all events starting
+// after the current time.
+std::vector<Event> Model::getNextNEvents(int n) const
 {
-    std::unique_ptr<Event> nextEvent;
+    std::vector<Event> occurrences;
+    if (events.empty() || n <= 0)
+        return occurrences;
+
+    auto start = events.front()->getTime() - std::chrono::seconds(1);
 
     for (const auto &ptr : events)
     {
         const Event &e = *ptr;
-
         if (!e.isRecurring())
         {
-            if (!nextEvent || e.getTime() < nextEvent->getTime())
-                nextEvent = e.clone();
+            occurrences.push_back(e);
         }
         else
         {
@@ -97,22 +100,32 @@ Event Model::getNextEvent() const
             if (!re)
                 continue;
 
-            auto times = re->getNextNOccurrences(re->getTime() - std::chrono::seconds(1), 1);
-            if (times.empty())
-                continue;
-
-            RecurringEvent candidate(re->getId(), re->getDescription(), re->getTitle(),
-                                    times[0], re->getDuration(), re->getRecurrencePattern());
-
-            if (!nextEvent || candidate.getTime() < nextEvent->getTime())
-                nextEvent = candidate.clone();
+            auto times = re->getNextNOccurrences(start, n);
+            for (auto t : times)
+            {
+                RecurringEvent occ(re->getId(), re->getDescription(), re->getTitle(),
+                                   t, re->getDuration(), re->getRecurrencePattern());
+                occurrences.push_back(occ);
+            }
         }
     }
 
-    if (!nextEvent)
-        throw std::runtime_error("No upcoming events.");
+    std::sort(occurrences.begin(), occurrences.end(),
+              [](const Event &a, const Event &b)
+              { return a.getTime() < b.getTime(); });
 
-    return *nextEvent;
+    if (static_cast<int>(occurrences.size()) > n)
+        occurrences.erase(occurrences.begin() + n, occurrences.end());
+    return occurrences;
+}
+
+// ReadOnlyModel override: return the very next (earliest) event after now.
+Event Model::getNextEvent() const
+{
+    auto list = getNextNEvents(1);
+    if (list.empty())
+        throw std::runtime_error("No upcoming events.");
+    return list.front();
 }
 
 // ===== Mutation methods =====
