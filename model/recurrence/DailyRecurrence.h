@@ -1,6 +1,7 @@
 #include "RecurrencePattern.h"
 #include <chrono>
 #include <vector>
+#include <string>
 
 // This pattern handles the "Every x days" recurrence
 // Example: every 7 days I want to order Nandos.
@@ -23,6 +24,11 @@ public:
         chrono::system_clock::time_point after, int n) const override;
 
     bool isDueOn(chrono::system_clock::time_point date) const override;
+
+    std::string type() const override { return "daily"; }
+    int getInterval() const { return repeatingInterval; }
+    int getMaxOccurrences() const { return maxOccurrences; }
+    chrono::system_clock::time_point getEndDate() const { return endDate; }
 
     ~DailyRecurrence() override = default;
 };

@@ -1,4 +1,10 @@
 #include "SQLiteScheduleDatabase.h"
+#include "../model/OneTimeEvent.h"
+#include "../model/RecurringEvent.h"
+#include "../model/recurrence/DailyRecurrence.h"
+#include "../model/recurrence/WeeklyRecurrence.h"
+#include "../utils/WeekDay.h"
+#include "nlohmann/json.hpp"
 #include <stdexcept>
 
 SQLiteScheduleDatabase::SQLiteScheduleDatabase(const std::string &path)
@@ -17,7 +23,8 @@ SQLiteScheduleDatabase::SQLiteScheduleDatabase(const std::string &path)
         "description TEXT,"
         "title TEXT,"
         "time INTEGER,"
-        "duration INTEGER);";
+        "duration INTEGER,"
+        "recurrence TEXT);";
     char *errMsg = nullptr;
     if (sqlite3_exec(db_.get(), createSql, nullptr, nullptr, &errMsg) != SQLITE_OK)
     {
@@ -30,8 +37,8 @@ SQLiteScheduleDatabase::SQLiteScheduleDatabase(const std::string &path)
 bool SQLiteScheduleDatabase::addEvent(const Event &e)
 {
     const char *sql =
-        "INSERT OR REPLACE INTO events (id, description, title, time, duration) "
-        "VALUES (?,?,?,?,?);";
+        "INSERT OR REPLACE INTO events (id, description, title, time, duration, recurrence) "
+        "VALUES (?,?,?,?,?,?);";
     sqlite3_stmt *stmt = nullptr;
     if (sqlite3_prepare_v2(db_.get(), sql, -1, &stmt, nullptr) != SQLITE_OK)
         return false;
@@ -46,6 +53,41 @@ bool SQLiteScheduleDatabase::addEvent(const Event &e)
     long long durSec =
         std::chrono::duration_cast<std::chrono::seconds>(e.getDuration()).count();
     sqlite3_bind_int64(stmt, 5, durSec);
+    std::string recJson;
+    if (e.isRecurring())
+    {
+        const auto *re = dynamic_cast<const RecurringEvent *>(&e);
+        if (re)
+        {
+            nlohmann::json j;
+            auto pat = re->getRecurrencePattern();
+            if (auto dr = dynamic_cast<DailyRecurrence *>(pat.get()))
+            {
+                j["type"] = "daily";
+                j["interval"] = dr->getInterval();
+                j["max"] = dr->getMaxOccurrences();
+                auto endSec = std::chrono::duration_cast<std::chrono::seconds>(dr->getEndDate().time_since_epoch()).count();
+                j["end"] = endSec;
+            }
+            else if (auto wr = dynamic_cast<WeeklyRecurrence *>(pat.get()))
+            {
+                j["type"] = "weekly";
+                j["interval"] = wr->getInterval();
+                std::vector<int> days;
+                for (auto d : wr->getDaysOfWeek())
+                    days.push_back(static_cast<int>(d));
+                j["days"] = days;
+                j["max"] = wr->getMaxOccurrences();
+                auto endSec = std::chrono::duration_cast<std::chrono::seconds>(wr->getEndDate().time_since_epoch()).count();
+                j["end"] = endSec;
+            }
+            recJson = j.dump();
+        }
+    }
+    if (recJson.empty())
+        sqlite3_bind_null(stmt, 6);
+    else
+        sqlite3_bind_text(stmt, 6, recJson.c_str(), -1, SQLITE_TRANSIENT);
 
     bool ok = sqlite3_step(stmt) == SQLITE_DONE;
     sqlite3_finalize(stmt);
@@ -64,15 +106,15 @@ bool SQLiteScheduleDatabase::removeEvent(const std::string &id)
     return ok;
 }
 
-std::vector<Event> SQLiteScheduleDatabase::getAllEvents() const
+std::vector<std::unique_ptr<Event>> SQLiteScheduleDatabase::getAllEvents() const
 {
     const char *sql =
-        "SELECT id, description, title, time, duration FROM events ORDER BY time;";
+        "SELECT id, description, title, time, duration, recurrence FROM events ORDER BY time;";
     sqlite3_stmt *stmt = nullptr;
     if (sqlite3_prepare_v2(db_.get(), sql, -1, &stmt, nullptr) != SQLITE_OK)
         return {};
 
-    std::vector<Event> result;
+    std::vector<std::unique_ptr<Event>> result;
     while (sqlite3_step(stmt) == SQLITE_ROW)
     {
         std::string id = reinterpret_cast<const char *>(sqlite3_column_text(stmt, 0));
@@ -80,9 +122,52 @@ std::vector<Event> SQLiteScheduleDatabase::getAllEvents() const
         std::string title = reinterpret_cast<const char *>(sqlite3_column_text(stmt, 2));
         long long timeSec = sqlite3_column_int64(stmt, 3);
         long long durSec = sqlite3_column_int64(stmt, 4);
+        const unsigned char *recText = sqlite3_column_text(stmt, 5);
         auto tp = std::chrono::system_clock::time_point(std::chrono::seconds(timeSec));
         auto dur = std::chrono::seconds(durSec);
-        result.emplace_back(id, desc, title, tp, dur);
+
+        if (recText)
+        {
+            try
+            {
+                nlohmann::json j = nlohmann::json::parse(reinterpret_cast<const char *>(recText));
+                std::shared_ptr<RecurrencePattern> pat;
+                std::string type = j.value("type", "");
+                if (type == "daily")
+                {
+                    int interval = j.value("interval", 1);
+                    int max = j.value("max", -1);
+                    long long endSec = j.value("end", std::numeric_limits<long long>::max());
+                    auto endTp = std::chrono::system_clock::time_point(std::chrono::seconds(endSec));
+                    pat = std::make_shared<DailyRecurrence>(tp, interval, max, endTp);
+                }
+                else if (type == "weekly")
+                {
+                    int interval = j.value("interval", 1);
+                    std::vector<int> daysVals = j.value("days", std::vector<int>{});
+                    std::vector<Weekday> days;
+                    for (int d : daysVals)
+                        days.push_back(static_cast<Weekday>(d));
+                    int max = j.value("max", -1);
+                    long long endSec = j.value("end", std::numeric_limits<long long>::max());
+                    auto endTp = std::chrono::system_clock::time_point(std::chrono::seconds(endSec));
+                    pat = std::make_shared<WeeklyRecurrence>(tp, days, interval, max, endTp);
+                }
+
+                if (pat)
+                {
+                    auto ev = std::make_unique<RecurringEvent>(id, desc, title, tp, dur, pat);
+                    result.push_back(std::move(ev));
+                    continue;
+                }
+            }
+            catch (...)
+            {
+                // fall back to one-time event
+            }
+        }
+        auto ev = std::make_unique<OneTimeEvent>(id, desc, title, tp, dur);
+        result.push_back(std::move(ev));
     }
     sqlite3_finalize(stmt);
     return result;
