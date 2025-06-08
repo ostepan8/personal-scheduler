@@ -1,4 +1,5 @@
 #include "Model.h"
+#include "RecurringEvent.h"
 #include <algorithm> // for std::sort, std::remove_if
 #include <stdexcept> // for std::runtime_error
 #include <random>
@@ -79,11 +80,39 @@ Model::getEvents(int maxOccurrences,
 // ReadOnlyModel override: return the very next (earliest) event.
 Event Model::getNextEvent() const
 {
-    if (events.empty())
+    std::unique_ptr<Event> nextEvent;
+
+    for (const auto &ptr : events)
     {
-        throw std::runtime_error("No upcoming events.");
+        const Event &e = *ptr;
+
+        if (!e.isRecurring())
+        {
+            if (!nextEvent || e.getTime() < nextEvent->getTime())
+                nextEvent = e.clone();
+        }
+        else
+        {
+            const auto *re = dynamic_cast<const RecurringEvent *>(ptr.get());
+            if (!re)
+                continue;
+
+            auto times = re->getNextNOccurrences(re->getTime() - std::chrono::seconds(1), 1);
+            if (times.empty())
+                continue;
+
+            RecurringEvent candidate(re->getId(), re->getDescription(), re->getTitle(),
+                                    times[0], re->getDuration(), re->getRecurrencePattern());
+
+            if (!nextEvent || candidate.getTime() < nextEvent->getTime())
+                nextEvent = candidate.clone();
+        }
     }
-    return *events.front();
+
+    if (!nextEvent)
+        throw std::runtime_error("No upcoming events.");
+
+    return *nextEvent;
 }
 
 // ===== Mutation methods =====
