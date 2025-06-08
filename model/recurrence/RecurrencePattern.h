@@ -4,8 +4,9 @@
 #include <string>
 using namespace std;
 
-// This is a recurrence pattern which the RecurringEvent will be composed with.
-// This set up will make it easier to handle recurring events.
+// Base interface for all recurrence patterns used by `RecurringEvent`.
+// Implementations provide scheduling logic for daily, weekly, monthly or
+// yearly repetition rules.
 class RecurrencePattern
 {
 public:

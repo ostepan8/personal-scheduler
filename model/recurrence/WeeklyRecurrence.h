@@ -4,8 +4,10 @@
 #include <algorithm>
 #include <string>
 #include "../../utils/WeekDay.h"
-// This pattern handles the every x weeks on yDay and zDay walk the dalk.
-// For example, every week on Tuesday and Thursday, I have Object Oriented Design Class.
+// This pattern handles the "every X weeks on specific days" use case.
+// Use `WeeklyRecurrence` when an event repeats on one or more weekdays
+// with a weekly interval.
+// For example, every week on Tuesday and Thursday I have Object Oriented Design class.
 // For example, every 2 weeks I go to Church on Sunday.
 class WeeklyRecurrence : public RecurrencePattern
 {

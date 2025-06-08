@@ -3,9 +3,10 @@
 #include <vector>
 #include <string>
 
-// This pattern handles the "Every x days" recurrence
+// This pattern handles events that repeat every fixed number of days.
+// Use `DailyRecurrence` when an activity follows a simple daily cadence.
 // Example: every 7 days I want to order Nandos.
-// Example: every other day, I want to go to the gym.
+// Example: every other day I want to go to the gym.
 class DailyRecurrence : public RecurrencePattern
 {
 private:

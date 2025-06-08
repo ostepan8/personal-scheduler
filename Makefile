@@ -12,6 +12,8 @@ SRCS = main.cpp \
        model/RecurringEvent.cpp \
        model/recurrence/DailyRecurrence.cpp \
        model/recurrence/WeeklyRecurrence.cpp \
+       model/recurrence/MonthlyRecurrence.cpp \
+       model/recurrence/YearlyRecurrence.cpp \
        view/TextualView.cpp \
        api/ApiServer.cpp \
        database/SQLiteScheduleDatabase.cpp
@@ -54,66 +56,80 @@ $(CONTROLLER_TEST_OBJS) $(VIEW_TEST_OBJS) $(API_TEST_OBJS) $(TEST_TARGETS)
 
 # Test setup
 RECURRENCE_TEST_SRCS = tests/recurrence/recurrence_tests.cpp \
-	               model/recurrence/DailyRecurrence.cpp \
-	               model/recurrence/WeeklyRecurrence.cpp
+                       model/recurrence/DailyRecurrence.cpp \
+                       model/recurrence/WeeklyRecurrence.cpp \
+                       model/recurrence/MonthlyRecurrence.cpp \
+                       model/recurrence/YearlyRecurrence.cpp
 RECURRENCE_TEST_OBJS = $(RECURRENCE_TEST_SRCS:.cpp=.o)
 RECURRENCE_TEST_TARGET = recurrence_tests
 
 EVENT_TEST_SRCS = tests/events/event_tests.cpp \
-	          model/OneTimeEvent.cpp \
-	          model/RecurringEvent.cpp \
-	          model/recurrence/DailyRecurrence.cpp \
-	          model/recurrence/WeeklyRecurrence.cpp
+                  model/OneTimeEvent.cpp \
+                  model/RecurringEvent.cpp \
+                  model/recurrence/DailyRecurrence.cpp \
+                  model/recurrence/WeeklyRecurrence.cpp \
+                  model/recurrence/MonthlyRecurrence.cpp \
+                  model/recurrence/YearlyRecurrence.cpp
 EVENT_TEST_OBJS = $(EVENT_TEST_SRCS:.cpp=.o)
 EVENT_TEST_TARGET = event_tests
 
 MODEL_TEST_SRCS = tests/model/model_tests.cpp \
-	          model/Model.cpp \
-	          model/OneTimeEvent.cpp \
-	          model/RecurringEvent.cpp \
-	          model/recurrence/DailyRecurrence.cpp \
-	          model/recurrence/WeeklyRecurrence.cpp
+                  model/Model.cpp \
+                  model/OneTimeEvent.cpp \
+                  model/RecurringEvent.cpp \
+                  model/recurrence/DailyRecurrence.cpp \
+                  model/recurrence/WeeklyRecurrence.cpp \
+                  model/recurrence/MonthlyRecurrence.cpp \
+                  model/recurrence/YearlyRecurrence.cpp
 MODEL_TEST_OBJS = $(MODEL_TEST_SRCS:.cpp=.o)
 MODEL_TEST_TARGET = model_tests
 
 MODEL_COMPREHENSIVE_TEST_SRCS = tests/model/model_comprehensive_tests.cpp \
-	                        model/Model.cpp \
-	                        model/OneTimeEvent.cpp \
-	                        model/RecurringEvent.cpp \
-	                        model/recurrence/DailyRecurrence.cpp \
-	                        model/recurrence/WeeklyRecurrence.cpp
+                                model/Model.cpp \
+                                model/OneTimeEvent.cpp \
+                                model/RecurringEvent.cpp \
+                                model/recurrence/DailyRecurrence.cpp \
+                                model/recurrence/WeeklyRecurrence.cpp \
+                                model/recurrence/MonthlyRecurrence.cpp \
+                                model/recurrence/YearlyRecurrence.cpp
 MODEL_COMPREHENSIVE_TEST_OBJS = $(MODEL_COMPREHENSIVE_TEST_SRCS:.cpp=.o)
 MODEL_COMPREHENSIVE_TEST_TARGET = model_comprehensive_tests
 
 CONTROLLER_TEST_SRCS = tests/controller/controller_tests.cpp \
-	               controller/Controller.cpp \
-	               model/Model.cpp \
-	               model/OneTimeEvent.cpp \
-	               model/RecurringEvent.cpp \
-	               model/recurrence/DailyRecurrence.cpp \
-	               model/recurrence/WeeklyRecurrence.cpp
+                       controller/Controller.cpp \
+                       model/Model.cpp \
+                       model/OneTimeEvent.cpp \
+                       model/RecurringEvent.cpp \
+                       model/recurrence/DailyRecurrence.cpp \
+                       model/recurrence/WeeklyRecurrence.cpp \
+                       model/recurrence/MonthlyRecurrence.cpp \
+                       model/recurrence/YearlyRecurrence.cpp
 CONTROLLER_TEST_OBJS = $(CONTROLLER_TEST_SRCS:.cpp=.o)
 CONTROLLER_TEST_TARGET = controller_tests
 
 # View tests
 VIEW_TEST_SRCS = tests/view/view_tests.cpp \
-	         view/TextualView.cpp \
-	         model/Model.cpp \
-	         model/OneTimeEvent.cpp \
-	         model/RecurringEvent.cpp \
-	         model/recurrence/DailyRecurrence.cpp \
-	         model/recurrence/WeeklyRecurrence.cpp
+                 view/TextualView.cpp \
+                 model/Model.cpp \
+                 model/OneTimeEvent.cpp \
+                 model/RecurringEvent.cpp \
+                 model/recurrence/DailyRecurrence.cpp \
+                 model/recurrence/WeeklyRecurrence.cpp \
+                 model/recurrence/MonthlyRecurrence.cpp \
+                 model/recurrence/YearlyRecurrence.cpp
 VIEW_TEST_OBJS = $(VIEW_TEST_SRCS:.cpp=.o)
 VIEW_TEST_TARGET = view_tests
 
 # API server tests
 API_TEST_SRCS = tests/api/api_tests.cpp \
-	        api/ApiServer.cpp \
-	        model/Model.cpp \
-	        model/OneTimeEvent.cpp \
-	        model/RecurringEvent.cpp \
-	        model/recurrence/DailyRecurrence.cpp \
-	        model/recurrence/WeeklyRecurrence.cpp
+                api/ApiServer.cpp \
+                model/Model.cpp \
+                model/OneTimeEvent.cpp \
+                model/RecurringEvent.cpp \
+                model/recurrence/DailyRecurrence.cpp \
+                model/recurrence/WeeklyRecurrence.cpp \
+                model/recurrence/MonthlyRecurrence.cpp \
+                model/recurrence/YearlyRecurrence.cpp
 API_TEST_OBJS = $(API_TEST_SRCS:.cpp=.o)
 API_TEST_TARGET = api_tests
 
@@ -123,7 +139,9 @@ DATABASE_TEST_SRCS = tests/database/database_tests.cpp \
                      model/OneTimeEvent.cpp \
                      model/RecurringEvent.cpp \
                      model/recurrence/DailyRecurrence.cpp \
-                     model/recurrence/WeeklyRecurrence.cpp
+                     model/recurrence/WeeklyRecurrence.cpp \
+                     model/recurrence/MonthlyRecurrence.cpp \
+                     model/recurrence/YearlyRecurrence.cpp
 DATABASE_TEST_OBJS = $(DATABASE_TEST_SRCS:.cpp=.o)
 DATABASE_TEST_TARGET = database_tests
 
