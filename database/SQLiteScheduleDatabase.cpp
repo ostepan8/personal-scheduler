@@ -3,6 +3,8 @@
 #include "../model/RecurringEvent.h"
 #include "../model/recurrence/DailyRecurrence.h"
 #include "../model/recurrence/WeeklyRecurrence.h"
+#include "../model/recurrence/MonthlyRecurrence.h"
+#include "../model/recurrence/YearlyRecurrence.h"
 #include "../utils/WeekDay.h"
 #include "nlohmann/json.hpp"
 #include <stdexcept>
@@ -81,6 +83,22 @@ bool SQLiteScheduleDatabase::addEvent(const Event &e)
                 auto endSec = std::chrono::duration_cast<std::chrono::seconds>(wr->getEndDate().time_since_epoch()).count();
                 j["end"] = endSec;
             }
+            else if (auto mr = dynamic_cast<MonthlyRecurrence *>(pat.get()))
+            {
+                j["type"] = "monthly";
+                j["interval"] = mr->getInterval();
+                j["max"] = mr->getMaxOccurrences();
+                auto endSec = std::chrono::duration_cast<std::chrono::seconds>(mr->getEndDate().time_since_epoch()).count();
+                j["end"] = endSec;
+            }
+            else if (auto yr = dynamic_cast<YearlyRecurrence *>(pat.get()))
+            {
+                j["type"] = "yearly";
+                j["interval"] = yr->getInterval();
+                j["max"] = yr->getMaxOccurrences();
+                auto endSec = std::chrono::duration_cast<std::chrono::seconds>(yr->getEndDate().time_since_epoch()).count();
+                j["end"] = endSec;
+            }
             recJson = j.dump();
         }
     }
@@ -152,6 +170,22 @@ std::vector<std::unique_ptr<Event>> SQLiteScheduleDatabase::getAllEvents() const
                     long long endSec = j.value("end", std::numeric_limits<long long>::max());
                     auto endTp = std::chrono::system_clock::time_point(std::chrono::seconds(endSec));
                     pat = std::make_shared<WeeklyRecurrence>(tp, days, interval, max, endTp);
+                }
+                else if (type == "monthly")
+                {
+                    int interval = j.value("interval", 1);
+                    int max = j.value("max", -1);
+                    long long endSec = j.value("end", std::numeric_limits<long long>::max());
+                    auto endTp = std::chrono::system_clock::time_point(std::chrono::seconds(endSec));
+                    pat = std::make_shared<MonthlyRecurrence>(tp, interval, max, endTp);
+                }
+                else if (type == "yearly")
+                {
+                    int interval = j.value("interval", 1);
+                    int max = j.value("max", -1);
+                    long long endSec = j.value("end", std::numeric_limits<long long>::max());
+                    auto endTp = std::chrono::system_clock::time_point(std::chrono::seconds(endSec));
+                    pat = std::make_shared<YearlyRecurrence>(tp, interval, max, endTp);
                 }
 
                 if (pat)
