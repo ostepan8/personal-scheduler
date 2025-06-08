@@ -1,6 +1,7 @@
 #pragma once
 
-#include <vector>
+#include <map>
+#include <mutex>
 #include <chrono>
 #include <string>
 #include <memory>
@@ -10,19 +11,19 @@
 
 /*
   Model extends ReadOnlyModel by adding mutators (addEvent, removeEvent).
-  Internally it keeps a sorted vector of polymorphic Events using std::unique_ptr.
+  Internally it keeps events in a time-ordered container.  Access is protected
+  by a mutex so multiple API threads can modify the schedule concurrently.
 */
 class Model : public ReadOnlyModel
 {
 private:
-    std::vector<std::unique_ptr<Event>> events;
+    std::multimap<std::chrono::system_clock::time_point, std::unique_ptr<Event>> events;
     IScheduleDatabase *db_;
+    mutable std::mutex mutex_;
 
     // Check if an event ID already exists in the current list
     bool eventExists(const std::string &id) const;
 
-    // Re‐sort the internal list whenever it changes.
-    void sortEvents();
 
 public:
     // Construct with an initial list of events and optional database.
