@@ -7,6 +7,7 @@ RecurringEvent::RecurringEvent(const string &id, const string &desc,
                                std::shared_ptr<RecurrencePattern> recurrencePattern)
     : Event(id, desc, title, time, duration), recurrencePattern(std::move(recurrencePattern))
 {
+    setRecurring(true);
 }
 
 bool RecurringEvent::isDueOn(chrono::system_clock::time_point data) const
