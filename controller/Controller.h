@@ -36,6 +36,12 @@ private:
     static std::chrono::system_clock::time_point
     parseTimePoint(const std::string &timestamp);
 
+    static std::chrono::system_clock::time_point
+    parseDate(const std::string &dateStr);
+
+    static std::chrono::system_clock::time_point
+    parseMonth(const std::string &monthStr);
+
     // Print the next upcoming event or “no upcoming events”.
     void printNextEvent();
 
