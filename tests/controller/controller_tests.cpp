@@ -26,14 +26,16 @@ static void testControllerParseFormat()
     catch(const exception&) { threw = true; }
     assert(threw);
 
-    const char* prev = getenv("TZ");
+    const char* prevPtr = getenv("TZ");
+    std::string prev = prevPtr ? std::string(prevPtr) : std::string();
+    bool hadPrev = prevPtr != nullptr;
     setenv("TZ", "Europe/Berlin", 1);
     tzset();
     auto tp2 = Controller::parseTimePoint("2025-06-05 12:00");
     string s2 = Controller::formatTimePoint(tp2);
     assert(s2 == "2025-06-05 12:00");
-    if (prev)
-        setenv("TZ", prev, 1);
+    if (hadPrev)
+        setenv("TZ", prev.c_str(), 1);
     else
         unsetenv("TZ");
     tzset();
@@ -50,7 +52,9 @@ static void testControllerParseFormatTimeZones()
 
     for (const auto &c : cases)
     {
-        const char* prev = getenv("TZ");
+        const char* prevPtr = getenv("TZ");
+        std::string prev = prevPtr ? std::string(prevPtr) : std::string();
+        bool hadPrev = prevPtr != nullptr;
         setenv("TZ", c.zone, 1);
         tzset();
 
@@ -66,8 +70,8 @@ static void testControllerParseFormatTimeZones()
         string utc = buf;
         assert(utc == c.utc);
 
-        if (prev)
-            setenv("TZ", prev, 1);
+        if (hadPrev)
+            setenv("TZ", prev.c_str(), 1);
         else
             unsetenv("TZ");
         tzset();
@@ -76,7 +80,9 @@ static void testControllerParseFormatTimeZones()
 
 static void testControllerCrossTimeZones()
 {
-    const char* prev = getenv("TZ");
+    const char* prevPtr = getenv("TZ");
+    std::string prev = prevPtr ? std::string(prevPtr) : std::string();
+    bool hadPrev = prevPtr != nullptr;
 
     // Event created in Chicago during DST
     setenv("TZ", "America/Chicago", 1);
@@ -114,8 +120,8 @@ static void testControllerCrossTimeZones()
     string tokyoW = Controller::formatTimePoint(tpWinter);
     assert(tokyoW == "2025-01-16 05:00");
 
-    if (prev)
-        setenv("TZ", prev, 1);
+    if (hadPrev)
+        setenv("TZ", prev.c_str(), 1);
     else
         unsetenv("TZ");
     tzset();
