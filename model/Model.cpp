@@ -3,21 +3,22 @@
 #include <stdexcept> // for std::runtime_error
 #include <random>
 #include <sstream>
+#include <memory>
 
 // Re‐sort internal list so that events are in ascending time order.
 void Model::sortEvents()
 {
     std::sort(events.begin(), events.end(),
-              [](const Event &a, const Event &b)
+              [](const std::unique_ptr<Event> &a, const std::unique_ptr<Event> &b)
               {
-                  return a.getTime() < b.getTime();
+                  return a->getTime() < b->getTime();
               });
 }
 
 bool Model::eventExists(const std::string &id) const
 {
-    return std::any_of(events.begin(), events.end(), [&](const Event &ev) {
-        return ev.getId() == id;
+    return std::any_of(events.begin(), events.end(), [&](const std::unique_ptr<Event> &ev) {
+        return ev->getId() == id;
     });
 }
 
@@ -35,13 +36,17 @@ std::string Model::generateUniqueId() const
     return id;
 }
 
-// Constructor: optionally load events from a database, otherwise use provided list.
-Model::Model(std::vector<Event> init, IScheduleDatabase *db)
-    : events(std::move(init)), db_(db)
+// Constructor: optionally load events from a database
+Model::Model(IScheduleDatabase *db)
+    : db_(db)
 {
     if (db_)
     {
-        events = db_->getAllEvents();
+        auto loaded = db_->getAllEvents();
+        for (const auto &e : loaded)
+        {
+            events.push_back(e.clone());
+        }
     }
     sortEvents();
 }
@@ -54,8 +59,9 @@ Model::getEvents(int maxOccurrences,
     std::vector<Event> result;
     result.reserve(events.size());
 
-    for (const auto &e : events)
+    for (const auto &ptr : events)
     {
+        const Event &e = *ptr;
         // Stop once we exceed endDate
         if (e.getTime() > endDate)
         {
@@ -77,18 +83,18 @@ Event Model::getNextEvent() const
     {
         throw std::runtime_error("No upcoming events.");
     }
-    return events.front();
+    return *events.front();
 }
 
 // ===== Mutation methods =====
 
-bool Model::addEvent(Event &e)
+bool Model::addEvent(const Event &e)
 {
     if (eventExists(e.getId()))
     {
         return false;
     }
-    events.push_back(e);
+    events.push_back(e.clone());
     sortEvents();
     if (db_)
     {
@@ -97,7 +103,7 @@ bool Model::addEvent(Event &e)
     return true;
 }
 
-bool Model::removeEvent(Event &e)
+bool Model::removeEvent(const Event &e)
 {
     return removeEvent(e.getId());
 }
@@ -106,9 +112,9 @@ bool Model::removeEvent(const std::string &id)
 {
     auto beforeSize = events.size();
     events.erase(std::remove_if(events.begin(), events.end(),
-                                [&](const Event &ev)
+                                [&](const std::unique_ptr<Event> &ev)
                                 {
-                                    return ev.getId() == id;
+                                    return ev->getId() == id;
                                 }),
                  events.end());
     bool removed = events.size() < beforeSize;
@@ -144,8 +150,9 @@ std::vector<Event> Model::getEventsOnDay(std::chrono::system_clock::time_point d
     auto start = startOfDay(day);
     auto end = start + std::chrono::hours(24);
     std::vector<Event> result;
-    for (const auto &e : events)
+    for (const auto &ptr : events)
     {
+        const Event &e = *ptr;
         if (e.getTime() < start)
             continue;
         if (e.getTime() >= end)
@@ -169,8 +176,9 @@ std::vector<Event> Model::getEventsInWeek(std::chrono::system_clock::time_point 
     auto start = startOfDay(day) - std::chrono::hours(24 * diff);
     auto end = start + std::chrono::hours(24 * 7);
     std::vector<Event> result;
-    for (const auto &e : events)
+    for (const auto &ptr : events)
     {
+        const Event &e = *ptr;
         if (e.getTime() < start)
             continue;
         if (e.getTime() >= end)
@@ -208,8 +216,9 @@ std::vector<Event> Model::getEventsInMonth(std::chrono::system_clock::time_point
     auto end = std::chrono::system_clock::from_time_t(end_t);
 
     std::vector<Event> result;
-    for (const auto &e : events)
+    for (const auto &ptr : events)
     {
+        const Event &e = *ptr;
         if (e.getTime() < start)
             continue;
         if (e.getTime() >= end)

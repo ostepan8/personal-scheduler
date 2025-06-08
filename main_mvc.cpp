@@ -6,8 +6,7 @@
 
 int main() {
     SQLiteScheduleDatabase db("events.db");
-    std::vector<Event> initial;
-    Model model(initial, &db);
+    Model model(&db);
     TextualView view(model);
     Controller controller(model, view);
     controller.run();

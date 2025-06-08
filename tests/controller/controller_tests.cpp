@@ -6,6 +6,7 @@
 #include "../../model/RecurringEvent.h"
 #include "../../model/recurrence/DailyRecurrence.h"
 #include "../test_utils.h"
+#include <memory>
 
 #define private public
 #include "../../controller/Controller.h"
@@ -122,7 +123,7 @@ static void testControllerCrossTimeZones()
 
 static void testControllerPrintNextEvent()
 {
-    Model m({});
+    Model m;
     OneTimeEvent e1("1","d","t", makeTime(2025,6,1,9), hours(1));
     m.addEvent(e1);
     StubView v(m);
@@ -137,7 +138,7 @@ static void testControllerPrintNextEvent()
 
 static void testControllerPrintNextEventNone()
 {
-    Model m({});
+    Model m;
     StubView v(m);
     Controller c(m,v);
     std::ostringstream ss;
@@ -149,12 +150,12 @@ static void testControllerPrintNextEventNone()
 
 static void testControllerAddRecurring()
 {
-    Model m({});
+    Model m;
     StubView v(m);
     Controller c(m,v);
 
     auto start = makeTime(2025,6,1,9);
-    DailyRecurrence pattern(start, 1);
+    auto pattern = std::make_shared<DailyRecurrence>(start, 1);
     std::string id = c.addRecurringEvent("t", "d", start, hours(1), pattern);
 
     OneTimeEvent o("O","d","t", makeTime(2025,6,2,9), hours(1));
