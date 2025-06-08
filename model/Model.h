@@ -3,18 +3,19 @@
 #include <vector>
 #include <chrono>
 #include <string>
+#include <memory>
 #include "Event.h"
 #include "ReadOnlyModel.h"
 #include "../database/IScheduleDatabase.h"
 
 /*
   Model extends ReadOnlyModel by adding mutators (addEvent, removeEvent).
-  Internally it keeps a sorted vector<Event> and implements all queries.
+  Internally it keeps a sorted vector of polymorphic Events using std::unique_ptr.
 */
 class Model : public ReadOnlyModel
 {
 private:
-    std::vector<Event> events;
+    std::vector<std::unique_ptr<Event>> events;
     IScheduleDatabase *db_;
 
     // Check if an event ID already exists in the current list
@@ -25,7 +26,7 @@ private:
 
 public:
     // Construct with an initial list of events and optional database.
-    explicit Model(std::vector<Event> init, IScheduleDatabase *db = nullptr);
+    explicit Model(IScheduleDatabase *db = nullptr);
 
     // ReadOnlyModel overrides (note the const):
     std::vector<Event>
@@ -42,10 +43,10 @@ public:
     // ====== Mutation methods ======
 
     // Add a new event. Returns true on success.
-    bool addEvent(Event &e);
+    bool addEvent(const Event &e);
 
     // Remove by full Event object (matches by ID internally). Returns true if removed.
-    bool removeEvent(Event &e);
+    bool removeEvent(const Event &e);
 
     // Remove by ID. Returns true if at least one Event with that ID was erased.
     bool removeEvent(const std::string &id);

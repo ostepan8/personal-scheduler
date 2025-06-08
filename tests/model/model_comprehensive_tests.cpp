@@ -6,14 +6,15 @@
 #include "../../model/recurrence/DailyRecurrence.h"
 #include "../../model/recurrence/WeeklyRecurrence.h"
 #include "../test_utils.h"
+#include <memory>
 
 using namespace std;
 using namespace chrono;
 
 static void testAddMixedEvents()
 {
-    Model m({});
-    FakePattern pat;
+    Model m;
+    auto pat = std::make_shared<FakePattern>();
     OneTimeEvent o1("O1","d1","t1", makeTime(2025,6,1,8), hours(1));
     OneTimeEvent o2("O2","d2","t2", makeTime(2025,6,2,8), hours(1));
     string r1id = "R1"; string r1d = "dr1"; string r1t = "tr1";
@@ -39,8 +40,8 @@ static void testAddMixedEvents()
 
 static void testRemoveMixedEvents()
 {
-    Model m({});
-    FakePattern pat;
+    Model m;
+    auto pat = std::make_shared<FakePattern>();
     OneTimeEvent o1("O1","d1","t1", makeTime(2025,6,1,8), hours(1));
     OneTimeEvent o2("O2","d2","t2", makeTime(2025,6,2,8), hours(1));
     string r1id = "R1"; string r1d = "dr1"; string r1t = "tr1";
@@ -61,7 +62,7 @@ static void testRemoveMixedEvents()
 
 static void testNextEventThrows()
 {
-    Model m({});
+    Model m;
     bool threw = false;
     try { m.getNextEvent(); }
     catch(const runtime_error&) { threw = true; }
@@ -70,8 +71,8 @@ static void testNextEventThrows()
 
 static void testGetEventsLimitAndCutoff()
 {
-    Model m({});
-    FakePattern pat;
+    Model m;
+    auto pat = std::make_shared<FakePattern>();
     OneTimeEvent e1("E1","d","t", makeTime(2025,6,1,8), hours(1));
     string r1id = "R1"; string r1d = "d1"; string r1t = "t1";
     string r2id = "R2"; string r2d = "d2"; string r2t = "t2";
@@ -94,7 +95,7 @@ static void testGetEventsLimitAndCutoff()
 
 static void testDuplicatesRejected()
 {
-    Model m({});
+    Model m;
     OneTimeEvent a("A","d","t", makeTime(2025,6,1,8), hours(1));
     OneTimeEvent a2("A","d2","t2", makeTime(2025,6,1,9), hours(1));
 

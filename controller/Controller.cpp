@@ -7,6 +7,7 @@
 #include <sstream>
 #include <chrono>
 #include <ctime>
+#include "../utils/TimeUtils.h"
 #include <stdexcept>
 
 using namespace std;
@@ -20,34 +21,13 @@ Controller::Controller(Model &model, View &view)
 // Convert a UTC time_point to a local timestamp string
 string Controller::formatTimePoint(const system_clock::time_point &tp)
 {
-    time_t t_c = system_clock::to_time_t(tp);
-    tm tm_buf;
-#if defined(_MSC_VER)
-    localtime_s(&tm_buf, &t_c);
-#else
-    localtime_r(&t_c, &tm_buf);
-#endif
-    char buf[32];
-    strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M", &tm_buf);
-    return string(buf);
+    return TimeUtils::formatTimePoint(tp);
 }
 
 // Interpret a local timestamp string and convert it to a UTC time_point
 system_clock::time_point Controller::parseTimePoint(const string &timestamp)
 {
-    std::tm tm_buf{};
-    std::istringstream ss(timestamp);
-    ss >> std::get_time(&tm_buf, "%Y-%m-%d %H:%M");
-    if (ss.fail())
-    {
-        throw std::runtime_error("Invalid timestamp format");
-    }
-    // Let mktime determine daylight saving time so we don't misinterpret
-    // timestamps in locales that observe DST. Without this, events entered
-    // during DST could be shifted by one hour.
-    tm_buf.tm_isdst = -1;
-    time_t time_c = std::mktime(&tm_buf);
-    return system_clock::from_time_t(time_c);
+    return TimeUtils::parseTimePoint(timestamp);
 }
 
 void Controller::printNextEvent()
@@ -71,12 +51,12 @@ string Controller::addRecurringEvent(const string &title,
                                      const string &desc,
                                      system_clock::time_point start,
                                      system_clock::duration dur,
-                                     RecurrencePattern &pattern)
+                                     std::shared_ptr<RecurrencePattern> pattern)
 {
     string idCopy = model_.generateUniqueId();
     string descCopy = desc;
     string titleCopy = title;
-    RecurringEvent e(idCopy, descCopy, titleCopy, start, dur, pattern);
+    RecurringEvent e(idCopy, descCopy, titleCopy, start, dur, std::move(pattern));
     model_.addEvent(e);
     return idCopy;
 }
