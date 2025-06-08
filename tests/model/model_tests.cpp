@@ -14,13 +14,14 @@ using namespace chrono;
 static void testModelAddAndRetrieve()
 {
     Model m;
-    OneTimeEvent e1("1","d1","t1", makeTime(2025,1,2,9), hours(1));
-    OneTimeEvent e2("2","d2","t2", makeTime(2025,1,1,8), hours(1));
+    auto now = chrono::system_clock::now();
+    OneTimeEvent e1("1","d1","t1", now + hours(2), hours(1));
+    OneTimeEvent e2("2","d2","t2", now + hours(1), hours(1));
     m.addEvent(e1);
     m.addEvent(e2);
     auto next = m.getNextEvent();
     assert(next.getId() == "2");
-    auto all = m.getEvents(-1, makeTime(2025,1,3,0));
+    auto all = m.getEvents(-1, now + hours(4));
     assert(all.size() == 2);
     assert(all[0].getId() == "2");
     assert(all[1].getId() == "1");
@@ -29,13 +30,14 @@ static void testModelAddAndRetrieve()
 static void testModelRemove()
 {
     Model m;
-    OneTimeEvent e1("1","d1","t1", makeTime(2025,1,1,9), hours(1));
-    OneTimeEvent e2("2","d2","t2", makeTime(2025,1,2,9), hours(1));
+    auto now = chrono::system_clock::now();
+    OneTimeEvent e1("1","d1","t1", now + hours(1), hours(1));
+    OneTimeEvent e2("2","d2","t2", now + hours(2), hours(1));
     m.addEvent(e1);
     m.addEvent(e2);
     assert(m.removeEvent("1"));
     assert(!m.removeEvent("3"));
-    auto all = m.getEvents(-1, makeTime(2025,1,3,0));
+    auto all = m.getEvents(-1, now + hours(5));
     assert(all.size() == 1 && all[0].getId() == "2");
 }
 
@@ -77,10 +79,11 @@ static void testModelWithDailyRecurring()
 static void testNextNWithRecurring()
 {
     Model m;
-    auto start = makeTime(2025,6,1,8);
+    auto now = chrono::system_clock::now();
+    auto start = now + hours(1);
     auto rec = std::make_shared<DailyRecurrence>(start, 1);
     RecurringEvent wake("W","wake","Wake", start, hours(1), rec);
-    OneTimeEvent ball("B","play","Ball", makeTime(2025,6,5,12), hours(2));
+    OneTimeEvent ball("B","play","Ball", start + hours(24*4) + hours(4), hours(2));
     m.addEvent(wake);
     m.addEvent(ball);
 
@@ -92,6 +95,28 @@ static void testNextNWithRecurring()
     for(int i=0;i<5;i++)
         assert(list[i].getTime() == start + hours(24*i));
     assert(list[5].getId() == "B");
+}
+
+static void testNextNSkipsPast()
+{
+    Model m;
+    auto now = chrono::system_clock::now();
+    auto pastStart = now - chrono::hours(24 * 2) - chrono::hours(5); // two days and 5 hours ago
+    auto rec = std::make_shared<DailyRecurrence>(pastStart, 1);
+    RecurringEvent past("R","d","t", pastStart, hours(1), rec);
+    auto futureTime = now + chrono::hours(2);
+    OneTimeEvent upcoming("F","d","t", futureTime, hours(1));
+    m.addEvent(past);
+    m.addEvent(upcoming);
+
+    auto list = m.getNextNEvents(5);
+    assert(!list.empty());
+    // First event should be the upcoming one-time event in two hours
+    assert(list.front().getId() == "F");
+    for (const auto &e : list)
+    {
+        assert(e.getTime() > now);
+    }
 }
 
 static void testEventsOnDay()
@@ -164,6 +189,7 @@ int main()
     testModelGetEventsLimit();
     testModelWithDailyRecurring();
     testNextNWithRecurring();
+    testNextNSkipsPast();
     testEventsOnDay();
     testEventsInWeek();
     testEventsInMonth();
