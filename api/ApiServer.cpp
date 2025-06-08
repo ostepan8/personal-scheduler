@@ -6,45 +6,15 @@
 #include <iomanip>
 #include <sstream>
 #include <ctime>
+#include "../utils/TimeUtils.h"
 
 using json = nlohmann::json;
 using namespace std::chrono;
 
-static std::string formatTimePoint(const system_clock::time_point &tp)
-{
-    time_t t_c = system_clock::to_time_t(tp);
-    std::tm tm_buf;
-#if defined(_MSC_VER)
-    localtime_s(&tm_buf, &t_c);
-#else
-    localtime_r(&t_c, &tm_buf);
-#endif
-    char buf[32];
-    strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M", &tm_buf);
-    return std::string(buf);
-}
-
-static system_clock::time_point parseTimePoint(const std::string &timestamp)
-{
-    std::tm tm_buf{};
-    std::istringstream ss(timestamp);
-    ss >> std::get_time(&tm_buf, "%Y-%m-%d %H:%M");
-    if (ss.fail())
-        throw std::runtime_error("Invalid timestamp format");
-    tm_buf.tm_isdst = -1;
-    time_t time_c = std::mktime(&tm_buf);
-    return system_clock::from_time_t(time_c);
-}
-
-static system_clock::time_point parseDate(const std::string &dateStr)
-{
-    return parseTimePoint(dateStr + " 00:00");
-}
-
-static system_clock::time_point parseMonth(const std::string &monthStr)
-{
-    return parseTimePoint(monthStr + "-01 00:00");
-}
+using TimeUtils::formatTimePoint;
+using TimeUtils::parseTimePoint;
+using TimeUtils::parseDate;
+using TimeUtils::parseMonth;
 
 ApiServer::ApiServer(Model &model, int port)
     : model_(model), port_(port)

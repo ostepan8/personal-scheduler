@@ -43,5 +43,5 @@ private:
                                   const std::string &desc,
                                   std::chrono::system_clock::time_point start,
                                   std::chrono::system_clock::duration dur,
-                                  RecurrencePattern &pattern);
+                                  std::shared_ptr<RecurrencePattern> pattern);
 };
