@@ -85,14 +85,20 @@ std::vector<Event> Model::getNextNEvents(int n) const
     if (events.empty() || n <= 0)
         return occurrences;
 
-    auto start = events.front()->getTime() - std::chrono::seconds(1);
+    // Generate occurrences strictly after the current time so past events do not
+    // appear in the results.
+    auto now = std::chrono::system_clock::now();
+    auto start = now - std::chrono::seconds(1);
 
     for (const auto &ptr : events)
     {
         const Event &e = *ptr;
         if (!e.isRecurring())
         {
-            occurrences.push_back(e);
+            if (e.getTime() > now)
+            {
+                occurrences.push_back(e);
+            }
         }
         else
         {
