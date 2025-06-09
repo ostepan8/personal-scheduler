@@ -104,7 +104,8 @@ CONTROLLER_TEST_SRCS = tests/controller/controller_tests.cpp \
                        model/recurrence/DailyRecurrence.cpp \
                        model/recurrence/WeeklyRecurrence.cpp \
                        model/recurrence/MonthlyRecurrence.cpp \
-                       model/recurrence/YearlyRecurrence.cpp
+                       model/recurrence/YearlyRecurrence.cpp \
+                       scheduler/EventLoop.cpp
 CONTROLLER_TEST_OBJS = $(CONTROLLER_TEST_SRCS:.cpp=.o)
 CONTROLLER_TEST_TARGET = controller_tests
 
