@@ -11,6 +11,21 @@ class ScheduledTask : public Event {
     bool notified_ = false;
 
 public:
+    // Specify an absolute notification time
+    ScheduledTask(const std::string &id,
+                  const std::string &desc,
+                  const std::string &title,
+                  std::chrono::system_clock::time_point time,
+                  std::chrono::system_clock::duration dur,
+                  std::chrono::system_clock::time_point notifyTime,
+                  std::function<void()> notifyCb,
+                  std::function<void()> actionCb)
+        : Event(id, desc, title, time, dur),
+          notifyCb_(std::move(notifyCb)),
+          actionCb_(std::move(actionCb)),
+          notifyTime_(notifyTime) {}
+
+    // Convenience constructor: notify a duration before execution
     ScheduledTask(const std::string &id,
                   const std::string &desc,
                   const std::string &title,
@@ -19,11 +34,10 @@ public:
                   std::chrono::system_clock::duration notifyBefore,
                   std::function<void()> notifyCb,
                   std::function<void()> actionCb)
-        : Event(id, desc, title, time, dur),
-          notifyCb_(std::move(notifyCb)),
-          actionCb_(std::move(actionCb)) {
-        notifyTime_ = timeUtc - notifyBefore;
-    }
+        : ScheduledTask(id, desc, title, time, dur,
+                        time - notifyBefore,
+                        std::move(notifyCb),
+                        std::move(actionCb)) {}
 
     std::unique_ptr<Event> clone() const override { return std::make_unique<ScheduledTask>(*this); }
 

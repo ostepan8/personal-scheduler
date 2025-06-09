@@ -253,19 +253,24 @@ void Controller::run()
     cout << "Exiting scheduler.\n";
 }
 
-void Controller::scheduleTask(const Event &e)
+void Controller::scheduleTask(const Event &e,
+                              std::chrono::system_clock::duration notifyBefore,
+                              std::function<void()> notifyCb,
+                              std::function<void()> actionCb)
 {
     if (!loop_) return;
-    auto notifyBefore = std::chrono::minutes(10);
+    if (!notifyCb)
+        notifyCb = [id = e.getId(), title = e.getTitle()]() {
+            std::cout << "[" << id << "] \"" << title << "\" notification\n";
+        };
+    if (!actionCb)
+        actionCb = [id = e.getId(), title = e.getTitle()]() {
+            std::cout << "[" << id << "] \"" << title << "\" executing\n";
+        };
+
     auto task = std::make_shared<ScheduledTask>(
         e.getId(), e.getDescription(), e.getTitle(), e.getTime(), e.getDuration(),
-        notifyBefore,
-        [id = e.getId(), title = e.getTitle()]() {
-            std::cout << "[" << id << "] \"" << title << "\" notification\n";
-        },
-        [id = e.getId(), title = e.getTitle()]() {
-            std::cout << "[" << id << "] \"" << title << "\" executing\n";
-        });
+        notifyBefore, std::move(notifyCb), std::move(actionCb));
     loop_->addTask(task);
 }
 
