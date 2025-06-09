@@ -10,6 +10,7 @@ class Event:
     end: str    # RFC3339 timestamp
     description: str = ""
     timezone: str = "UTC"
+    id: str | None = None
 
 class CalendarService(ABC):
     """Abstract calendar service interface."""
