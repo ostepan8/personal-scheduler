@@ -1,4 +1,5 @@
 #include "Model.h"
+#include "../calendar/CalendarApi.h"
 #include "RecurringEvent.h"
 #include <algorithm> // for std::sort, std::remove_if
 #include <stdexcept> // for std::runtime_error
@@ -51,6 +52,12 @@ Model::Model(IScheduleDatabase *db, int preloadDaysAhead)
             events.emplace(e->getTime(), std::move(e));
         }
     }
+}
+
+void Model::addCalendarApi(std::shared_ptr<CalendarApi> api)
+{
+    std::lock_guard<std::mutex> lock(mutex_);
+    apis_.push_back(std::move(api));
 }
 
 // ReadOnlyModel override: return up to maxOccurrences events occurring before endDate.
@@ -141,16 +148,22 @@ Event Model::getNextEvent() const
 
 bool Model::addEvent(const Event &e)
 {
-    std::lock_guard<std::mutex> lock(mutex_);
-    if (eventExists(e.getId()))
+    std::vector<std::shared_ptr<CalendarApi>> apisCopy;
     {
-        return false;
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (eventExists(e.getId()))
+        {
+            return false;
+        }
+        events.emplace(e.getTime(), e.clone());
+        if (db_)
+        {
+            db_->addEvent(e);
+        }
+        apisCopy = apis_;
     }
-    events.emplace(e.getTime(), e.clone());
-    if (db_)
-    {
-        db_->addEvent(e);
-    }
+    for (auto &api : apisCopy)
+        api->addEvent(e);
     return true;
 }
 
@@ -161,21 +174,32 @@ bool Model::removeEvent(const Event &e)
 
 bool Model::removeEvent(const std::string &id)
 {
-    std::lock_guard<std::mutex> lock(mutex_);
-    auto beforeSize = events.size();
-    for (auto it = events.begin(); it != events.end(); )
+    std::unique_ptr<Event> removed;
+    std::vector<std::shared_ptr<CalendarApi>> apisCopy;
     {
-        if (it->second->getId() == id)
-            it = events.erase(it);
-        else
-            ++it;
+        std::lock_guard<std::mutex> lock(mutex_);
+        for (auto it = events.begin(); it != events.end(); )
+        {
+            if (it->second->getId() == id)
+            {
+                removed = std::move(it->second);
+                it = events.erase(it);
+            }
+            else
+            {
+                ++it;
+            }
+        }
+        if (removed && db_)
+        {
+            db_->removeEvent(id);
+        }
+        apisCopy = apis_;
     }
-    bool removed = events.size() < beforeSize;
-    if (removed && db_)
-    {
-        db_->removeEvent(id);
-    }
-    return removed;
+    if (removed)
+        for (auto &api : apisCopy)
+            api->deleteEvent(*removed);
+    return static_cast<bool>(removed);
 }
 
 void Model::removeAllEvents()

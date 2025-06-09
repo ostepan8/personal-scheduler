@@ -39,4 +39,18 @@ inline std::chrono::system_clock::time_point parseDate(const std::string &dateSt
 inline std::chrono::system_clock::time_point parseMonth(const std::string &monthStr) {
     return parseTimePoint(monthStr + "-01 00:00");
 }
+
+inline std::string formatRFC3339UTC(const std::chrono::system_clock::time_point &tp) {
+    using namespace std::chrono;
+    time_t t_c = system_clock::to_time_t(tp);
+    std::tm tm_buf;
+#if defined(_MSC_VER)
+    gmtime_s(&tm_buf, &t_c);
+#else
+    gmtime_r(&t_c, &tm_buf);
+#endif
+    char buf[32];
+    strftime(buf, sizeof(buf), "%Y-%m-%dT%H:%M:%SZ", &tm_buf);
+    return std::string(buf);
+}
 }

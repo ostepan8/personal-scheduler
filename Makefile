@@ -17,7 +17,8 @@ SRCS = main.cpp \
        view/TextualView.cpp \
        api/ApiServer.cpp \
        database/SQLiteScheduleDatabase.cpp \
-       scheduler/EventLoop.cpp
+       scheduler/EventLoop.cpp \
+       calendar/GoogleCalendarApi.cpp
 
 # Object files (replace .cpp with .o)
 OBJS = $(SRCS:.cpp=.o)
@@ -73,7 +74,8 @@ EVENT_TEST_SRCS = tests/events/event_tests.cpp \
                   model/recurrence/DailyRecurrence.cpp \
                   model/recurrence/WeeklyRecurrence.cpp \
                   model/recurrence/MonthlyRecurrence.cpp \
-                  model/recurrence/YearlyRecurrence.cpp
+                  model/recurrence/YearlyRecurrence.cpp \
+                  calendar/GoogleCalendarApi.cpp
 EVENT_TEST_OBJS = $(EVENT_TEST_SRCS:.cpp=.o)
 EVENT_TEST_TARGET = event_tests
 
@@ -84,7 +86,8 @@ MODEL_TEST_SRCS = tests/model/model_tests.cpp \
                   model/recurrence/DailyRecurrence.cpp \
                   model/recurrence/WeeklyRecurrence.cpp \
                   model/recurrence/MonthlyRecurrence.cpp \
-                  model/recurrence/YearlyRecurrence.cpp
+                  model/recurrence/YearlyRecurrence.cpp \
+                  calendar/GoogleCalendarApi.cpp
 MODEL_TEST_OBJS = $(MODEL_TEST_SRCS:.cpp=.o)
 MODEL_TEST_TARGET = model_tests
 
@@ -95,7 +98,8 @@ MODEL_COMPREHENSIVE_TEST_SRCS = tests/model/model_comprehensive_tests.cpp \
                                 model/recurrence/DailyRecurrence.cpp \
                                 model/recurrence/WeeklyRecurrence.cpp \
                                 model/recurrence/MonthlyRecurrence.cpp \
-                                model/recurrence/YearlyRecurrence.cpp
+                                model/recurrence/YearlyRecurrence.cpp \
+                                calendar/GoogleCalendarApi.cpp
 MODEL_COMPREHENSIVE_TEST_OBJS = $(MODEL_COMPREHENSIVE_TEST_SRCS:.cpp=.o)
 MODEL_COMPREHENSIVE_TEST_TARGET = model_comprehensive_tests
 
@@ -108,7 +112,8 @@ CONTROLLER_TEST_SRCS = tests/controller/controller_tests.cpp \
                        model/recurrence/WeeklyRecurrence.cpp \
                        model/recurrence/MonthlyRecurrence.cpp \
                        model/recurrence/YearlyRecurrence.cpp \
-                       scheduler/EventLoop.cpp
+                       scheduler/EventLoop.cpp \
+                       calendar/GoogleCalendarApi.cpp
 CONTROLLER_TEST_OBJS = $(CONTROLLER_TEST_SRCS:.cpp=.o)
 CONTROLLER_TEST_TARGET = controller_tests
 
@@ -121,7 +126,8 @@ VIEW_TEST_SRCS = tests/view/view_tests.cpp \
                  model/recurrence/DailyRecurrence.cpp \
                  model/recurrence/WeeklyRecurrence.cpp \
                  model/recurrence/MonthlyRecurrence.cpp \
-                 model/recurrence/YearlyRecurrence.cpp
+                 model/recurrence/YearlyRecurrence.cpp \
+                 calendar/GoogleCalendarApi.cpp
 VIEW_TEST_OBJS = $(VIEW_TEST_SRCS:.cpp=.o)
 VIEW_TEST_TARGET = view_tests
 
@@ -134,7 +140,8 @@ API_TEST_SRCS = tests/api/api_tests.cpp \
                 model/recurrence/DailyRecurrence.cpp \
                 model/recurrence/WeeklyRecurrence.cpp \
                 model/recurrence/MonthlyRecurrence.cpp \
-                model/recurrence/YearlyRecurrence.cpp
+                model/recurrence/YearlyRecurrence.cpp \
+                calendar/GoogleCalendarApi.cpp
 API_TEST_OBJS = $(API_TEST_SRCS:.cpp=.o)
 API_TEST_TARGET = api_tests
 
@@ -146,7 +153,8 @@ DATABASE_TEST_SRCS = tests/database/database_tests.cpp \
                      model/recurrence/DailyRecurrence.cpp \
                      model/recurrence/WeeklyRecurrence.cpp \
                      model/recurrence/MonthlyRecurrence.cpp \
-                     model/recurrence/YearlyRecurrence.cpp
+                     model/recurrence/YearlyRecurrence.cpp \
+                     calendar/GoogleCalendarApi.cpp
 DATABASE_TEST_OBJS = $(DATABASE_TEST_SRCS:.cpp=.o)
 DATABASE_TEST_TARGET = database_tests
 
@@ -179,7 +187,8 @@ INTEGRATION_TEST_SRCS = tests/integration/integration_tests.cpp \
                        model/recurrence/MonthlyRecurrence.cpp \
                        model/recurrence/YearlyRecurrence.cpp \
                        database/SQLiteScheduleDatabase.cpp \
-                       scheduler/EventLoop.cpp
+                       scheduler/EventLoop.cpp \
+                       calendar/GoogleCalendarApi.cpp
 INTEGRATION_TEST_OBJS = $(INTEGRATION_TEST_SRCS:.cpp=.o)
 INTEGRATION_TEST_TARGET = integration_tests
 
