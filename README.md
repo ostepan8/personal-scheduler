@@ -20,3 +20,11 @@ Events are stored in an SQLite database (`events.db`). On startup the model
 loads all events from this database, reconstructing recurring patterns so
 commands like `list` and `nextn` work across restarts. The database tests in
 `tests/database` verify this behavior.
+
+## Event Loop
+
+The scheduler now includes an active `EventLoop` component. Tasks derived from
+`Event` (for example `ScheduledTask`) can register notification and execution
+callbacks. The loop runs in a background thread, dispatching notifications a
+few minutes before each task executes and invoking the task's action at the
+scheduled time.
