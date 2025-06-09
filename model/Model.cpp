@@ -29,15 +29,25 @@ std::string Model::generateUniqueId() const
     return id;
 }
 
-// Constructor: optionally load events from a database
-Model::Model(IScheduleDatabase *db)
+// Constructor: optionally load events from a database. If preloadDaysAhead >= 0
+// only events up to that many days in the future are loaded to reduce memory
+// usage.
+Model::Model(IScheduleDatabase *db, int preloadDaysAhead)
     : db_(db)
 {
+    if (preloadDaysAhead < 0)
+        preloadEnd_ = std::chrono::system_clock::time_point::max();
+    else
+        preloadEnd_ = std::chrono::system_clock::now() +
+                      std::chrono::hours(24 * preloadDaysAhead);
+
     if (db_)
     {
         auto loaded = db_->getAllEvents();
         for (auto &e : loaded)
         {
+            if (preloadDaysAhead >= 0 && e->getTime() > preloadEnd_)
+                continue;
             events.emplace(e->getTime(), std::move(e));
         }
     }

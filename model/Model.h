@@ -20,6 +20,7 @@ private:
     std::multimap<std::chrono::system_clock::time_point, std::unique_ptr<Event>> events;
     IScheduleDatabase *db_;
     mutable std::mutex mutex_;
+    std::chrono::system_clock::time_point preloadEnd_;
 
     // Check if an event ID already exists in the current list
     bool eventExists(const std::string &id) const;
@@ -27,7 +28,8 @@ private:
 
 public:
     // Construct with an initial list of events and optional database.
-    explicit Model(IScheduleDatabase *db = nullptr);
+    explicit Model(IScheduleDatabase *db = nullptr,
+                   int preloadDaysAhead = -1);
 
     // ReadOnlyModel overrides (note the const):
     std::vector<Event>
