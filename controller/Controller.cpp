@@ -31,27 +31,6 @@ Controller::Controller(Model &model, View &view, EventLoop *loop)
 {
 }
 
-// Convert a UTC time_point to a local timestamp string
-string Controller::formatTimePoint(const system_clock::time_point &tp)
-{
-    return TimeUtils::formatTimePoint(tp);
-}
-
-// Interpret a local timestamp string and convert it to a UTC time_point
-system_clock::time_point Controller::parseTimePoint(const string &timestamp)
-{
-    return TimeUtils::parseTimePoint(timestamp);
-}
-
-system_clock::time_point Controller::parseDate(const string &dateStr)
-{
-    return TimeUtils::parseDate(dateStr);
-}
-
-system_clock::time_point Controller::parseMonth(const string &monthStr)
-{
-    return TimeUtils::parseMonth(monthStr);
-}
 
 void Controller::printNextEvent()
 {
@@ -61,7 +40,7 @@ void Controller::printNextEvent()
         cout << "Next event: ["
              << next.getId() << "] \""
              << next.getTitle() << "\" @ "
-             << formatTimePoint(next.getTime())
+            << TimeUtils::formatTimePoint(next.getTime())
              << "\n";
     }
     catch (const exception &)
@@ -125,7 +104,7 @@ void Controller::run()
         cout << "Enter time (YYYY-MM-DD HH:MM): ";
         string timestr; getline(cin, timestr);
         system_clock::time_point tp;
-        try { tp = parseTimePoint(timestr); }
+        try { tp = TimeUtils::parseTimePoint(timestr); }
         catch(const exception &e) { cout << e.what() << "\n"; return; }
         OneTimeEvent e{id, desc, title, tp, hours(1)};
         model_.addEvent(e);
@@ -139,7 +118,7 @@ void Controller::run()
         cout << "Enter description: "; getline(cin, desc);
         cout << "Enter start time (YYYY-MM-DD HH:MM): "; getline(cin, timestr);
         system_clock::time_point start;
-        try { start = parseTimePoint(timestr); }
+        try { start = TimeUtils::parseTimePoint(timestr); }
         catch(const exception &e) { cout << e.what() << "\n"; return; }
         cout << "Recurrence type (daily/weekly): "; getline(cin, rtype);
         shared_ptr<RecurrencePattern> pat;
@@ -167,7 +146,7 @@ void Controller::run()
         cout << "Enter description: "; getline(cin, desc);
         cout << "Enter time (YYYY-MM-DD HH:MM): "; getline(cin, timestr);
         system_clock::time_point tp;
-        try { tp = parseTimePoint(timestr); } catch(const exception &e) {
+        try { tp = TimeUtils::parseTimePoint(timestr); } catch(const exception &e) {
             cout << e.what() << "\n"; return; }
         auto notifiers = NotificationRegistry::availableNotifiers();
         if(notifiers.empty()) {
@@ -232,7 +211,7 @@ void Controller::run()
         cout << "Enter date (YYYY-MM-DD): ";
         string d; getline(cin, d);
         system_clock::time_point day;
-        try { day = parseDate(d); } catch(const exception &e) { cout << e.what() << "\n"; return; }
+        try { day = TimeUtils::parseDate(d); } catch(const exception &e) { cout << e.what() << "\n"; return; }
         int n = model_.removeEventsOnDay(day);
         cout << "Removed " << n << " events.\n";
     };
@@ -241,7 +220,7 @@ void Controller::run()
         cout << "Enter date within week (YYYY-MM-DD): ";
         string d; getline(cin, d);
         system_clock::time_point day;
-        try { day = parseDate(d); } catch(const exception &e) { cout << e.what() << "\n"; return; }
+        try { day = TimeUtils::parseDate(d); } catch(const exception &e) { cout << e.what() << "\n"; return; }
         int n = model_.removeEventsInWeek(day);
         cout << "Removed " << n << " events.\n";
     };
@@ -250,7 +229,7 @@ void Controller::run()
         cout << "Enter time (YYYY-MM-DD HH:MM): ";
         string ts; getline(cin, ts);
         system_clock::time_point tp;
-        try { tp = parseTimePoint(ts); } catch(const exception &e) { cout << e.what() << "\n"; return; }
+        try { tp = TimeUtils::parseTimePoint(ts); } catch(const exception &e) { cout << e.what() << "\n"; return; }
         int n = model_.removeEventsBefore(tp);
         cout << "Removed " << n << " events.\n";
     };
@@ -267,7 +246,7 @@ void Controller::run()
         cout << "Enter date (YYYY-MM-DD): ";
         string d; getline(cin, d);
         system_clock::time_point day;
-        try { day = parseDate(d); } catch(const exception &e) { cout << e.what() << "\n"; return; }
+        try { day = TimeUtils::parseDate(d); } catch(const exception &e) { cout << e.what() << "\n"; return; }
         auto evs = model_.getEventsOnDay(day);
         view_.renderEvents(evs);
     };
@@ -276,7 +255,7 @@ void Controller::run()
         cout << "Enter date within week (YYYY-MM-DD): ";
         string d; getline(cin, d);
         system_clock::time_point day;
-        try { day = parseDate(d); } catch(const exception &e) { cout << e.what() << "\n"; return; }
+        try { day = TimeUtils::parseDate(d); } catch(const exception &e) { cout << e.what() << "\n"; return; }
         auto evs = model_.getEventsInWeek(day);
         view_.renderEvents(evs);
     };
@@ -285,7 +264,7 @@ void Controller::run()
         cout << "Enter month (YYYY-MM): ";
         string m; getline(cin, m);
         system_clock::time_point mo;
-        try { mo = parseMonth(m); } catch(const exception &e) { cout << e.what() << "\n"; return; }
+        try { mo = TimeUtils::parseMonth(m); } catch(const exception &e) { cout << e.what() << "\n"; return; }
         auto evs = model_.getEventsInMonth(mo);
         view_.renderEvents(evs);
     };

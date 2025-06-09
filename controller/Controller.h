@@ -56,18 +56,7 @@ private:
     View &view_;
     EventLoop *loop_;
 
-    // Convert a UTC time_point to a local time string "YYYY-MM-DD HH:MM".
-    static std::string formatTimePoint(const std::chrono::system_clock::time_point &tp);
-
-    // Parse a local time string "YYYY-MM-DD HH:MM" and return a UTC time_point.
-    static std::chrono::system_clock::time_point
-    parseTimePoint(const std::string &timestamp);
-
-    static std::chrono::system_clock::time_point
-    parseDate(const std::string &dateStr);
-
-    static std::chrono::system_clock::time_point
-    parseMonth(const std::string &monthStr);
+    // Time parsing/formatting utilities now live in utils/TimeUtils.h
 
     // Print the next upcoming event or “no upcoming events”.
     void printNextEvent();

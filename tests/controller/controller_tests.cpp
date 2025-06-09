@@ -11,18 +11,19 @@
 #define private public
 #include "../../controller/Controller.h"
 #undef private
+#include "../../utils/TimeUtils.h"
 
 using namespace std;
 using namespace chrono;
 
 static void testControllerParseFormat()
 {
-    auto tp = Controller::parseTimePoint("2025-06-01 09:30");
-    string s = Controller::formatTimePoint(tp);
+    auto tp = TimeUtils::parseTimePoint("2025-06-01 09:30");
+    string s = TimeUtils::formatTimePoint(tp);
     assert(s == "2025-06-01 09:30");
 
     bool threw = false;
-    try { Controller::parseTimePoint("bad format"); }
+    try { TimeUtils::parseTimePoint("bad format"); }
     catch(const exception&) { threw = true; }
     assert(threw);
 
@@ -31,8 +32,8 @@ static void testControllerParseFormat()
     bool hadPrev = prevPtr != nullptr;
     setenv("TZ", "Europe/Berlin", 1);
     tzset();
-    auto tp2 = Controller::parseTimePoint("2025-06-05 12:00");
-    string s2 = Controller::formatTimePoint(tp2);
+    auto tp2 = TimeUtils::parseTimePoint("2025-06-05 12:00");
+    string s2 = TimeUtils::formatTimePoint(tp2);
     assert(s2 == "2025-06-05 12:00");
     if (hadPrev)
         setenv("TZ", prev.c_str(), 1);
@@ -58,8 +59,8 @@ static void testControllerParseFormatTimeZones()
         setenv("TZ", c.zone, 1);
         tzset();
 
-        auto tp = Controller::parseTimePoint("2025-06-05 12:00");
-        string round = Controller::formatTimePoint(tp);
+        auto tp = TimeUtils::parseTimePoint("2025-06-05 12:00");
+        string round = TimeUtils::formatTimePoint(tp);
         assert(round == "2025-06-05 12:00");
 
         time_t t = system_clock::to_time_t(tp);
@@ -87,37 +88,37 @@ static void testControllerCrossTimeZones()
     // Event created in Chicago during DST
     setenv("TZ", "America/Chicago", 1);
     tzset();
-    auto tpSummer = Controller::parseTimePoint("2025-06-01 14:00");
+    auto tpSummer = TimeUtils::parseTimePoint("2025-06-01 14:00");
 
     // View the event from different locations
-    string chicago = Controller::formatTimePoint(tpSummer);
+    string chicago = TimeUtils::formatTimePoint(tpSummer);
     assert(chicago == "2025-06-01 14:00");
 
     setenv("TZ", "Europe/London", 1);
     tzset();
-    string london = Controller::formatTimePoint(tpSummer);
+    string london = TimeUtils::formatTimePoint(tpSummer);
     assert(london == "2025-06-01 20:00");
 
     setenv("TZ", "Asia/Tokyo", 1);
     tzset();
-    string tokyo = Controller::formatTimePoint(tpSummer);
+    string tokyo = TimeUtils::formatTimePoint(tpSummer);
     assert(tokyo == "2025-06-02 04:00");
 
     // Event created in Chicago outside of DST
     setenv("TZ", "America/Chicago", 1);
     tzset();
-    auto tpWinter = Controller::parseTimePoint("2025-01-15 14:00");
-    string chicagoW = Controller::formatTimePoint(tpWinter);
+    auto tpWinter = TimeUtils::parseTimePoint("2025-01-15 14:00");
+    string chicagoW = TimeUtils::formatTimePoint(tpWinter);
     assert(chicagoW == "2025-01-15 14:00");
 
     setenv("TZ", "Europe/London", 1);
     tzset();
-    string londonW = Controller::formatTimePoint(tpWinter);
+    string londonW = TimeUtils::formatTimePoint(tpWinter);
     assert(londonW == "2025-01-15 20:00");
 
     setenv("TZ", "Asia/Tokyo", 1);
     tzset();
-    string tokyoW = Controller::formatTimePoint(tpWinter);
+    string tokyoW = TimeUtils::formatTimePoint(tpWinter);
     assert(tokyoW == "2025-01-16 05:00");
 
     if (hadPrev)

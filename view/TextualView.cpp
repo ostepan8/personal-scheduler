@@ -1,5 +1,6 @@
 #include "TextualView.h"
 #include <iomanip>
+#include "../utils/TimeUtils.h"
 
 TextualView::TextualView(const ReadOnlyModel &model)
     : View(model)
@@ -27,18 +28,10 @@ void TextualView::renderEvents(const std::vector<Event> &events)
     for (const auto &e : events)
     {
         auto tp = e.getTime();
-        std::time_t t_c = std::chrono::system_clock::to_time_t(tp);
-        std::tm tm_buf;
-#if defined(_MSC_VER)
-        localtime_s(&tm_buf, &t_c);
-#else
-        localtime_r(&t_c, &tm_buf);
-#endif
-        char buf[32];
-        strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M", &tm_buf);
+        std::string ts = TimeUtils::formatTimePoint(tp);
 
         std::cout << "[" << e.getId() << "] \""
-                  << e.getTitle() << "\" @ " << buf;
+                  << e.getTitle() << "\" @ " << ts;
         if (e.isRecurring())
             std::cout << " (recurring)";
         std::cout << "\n";
