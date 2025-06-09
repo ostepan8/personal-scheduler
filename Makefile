@@ -163,7 +163,24 @@ BUILTIN_NOTIFIERS_TEST_SRCS = tests/utils/builtin_notifiers_tests.cpp
 BUILTIN_NOTIFIERS_TEST_OBJS = $(BUILTIN_NOTIFIERS_TEST_SRCS:.cpp=.o)
 BUILTIN_NOTIFIERS_TEST_TARGET = builtin_notifiers_tests
 
-TEST_TARGETS = $(RECURRENCE_TEST_TARGET) $(EVENT_TEST_TARGET) $(MODEL_TEST_TARGET) $(MODEL_COMPREHENSIVE_TEST_TARGET) $(CONTROLLER_TEST_TARGET) $(VIEW_TEST_TARGET) $(API_TEST_TARGET) $(DATABASE_TEST_TARGET) $(ACTION_REGISTRY_TEST_TARGET) $(BUILTIN_ACTIONS_TEST_TARGET) $(NOTIFICATION_REGISTRY_TEST_TARGET) $(BUILTIN_NOTIFIERS_TEST_TARGET)
+# Integration tests combining CLI, API and database
+INTEGRATION_TEST_SRCS = tests/integration/integration_tests.cpp \
+                       controller/Controller.cpp \
+                       view/TextualView.cpp \
+                       api/ApiServer.cpp \
+                       model/Model.cpp \
+                       model/OneTimeEvent.cpp \
+                       model/RecurringEvent.cpp \
+                       model/recurrence/DailyRecurrence.cpp \
+                       model/recurrence/WeeklyRecurrence.cpp \
+                       model/recurrence/MonthlyRecurrence.cpp \
+                       model/recurrence/YearlyRecurrence.cpp \
+                       database/SQLiteScheduleDatabase.cpp \
+                       scheduler/EventLoop.cpp
+INTEGRATION_TEST_OBJS = $(INTEGRATION_TEST_SRCS:.cpp=.o)
+INTEGRATION_TEST_TARGET = integration_tests
+
+TEST_TARGETS = $(RECURRENCE_TEST_TARGET) $(EVENT_TEST_TARGET) $(MODEL_TEST_TARGET) $(MODEL_COMPREHENSIVE_TEST_TARGET) $(CONTROLLER_TEST_TARGET) $(VIEW_TEST_TARGET) $(API_TEST_TARGET) $(DATABASE_TEST_TARGET) $(ACTION_REGISTRY_TEST_TARGET) $(BUILTIN_ACTIONS_TEST_TARGET) $(NOTIFICATION_REGISTRY_TEST_TARGET) $(BUILTIN_NOTIFIERS_TEST_TARGET) $(INTEGRATION_TEST_TARGET)
 
 test: $(TEST_TARGETS)
 	./run_all_tests.sh
@@ -202,5 +219,8 @@ $(NOTIFICATION_REGISTRY_TEST_TARGET): $(NOTIFICATION_REGISTRY_TEST_OBJS)
 
 $(BUILTIN_NOTIFIERS_TEST_TARGET): $(BUILTIN_NOTIFIERS_TEST_OBJS)
 	$(CXX) $(CXXFLAGS) $(BUILTIN_NOTIFIERS_TEST_OBJS) -o $@
+	
+$(INTEGRATION_TEST_TARGET): $(INTEGRATION_TEST_OBJS)
+	$(CXX) $(CXXFLAGS) $(INTEGRATION_TEST_OBJS) -lsqlite3 -pthread -o $@
 
 .PHONY: test
