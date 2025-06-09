@@ -7,6 +7,7 @@
 #include "../view/View.h"
 #include "../scheduler/EventLoop.h"
 #include <chrono>
+#include <functional>
 
 /*
   Controller coordinates a Model and a View.  It runs a simple CLI loop:
@@ -60,7 +61,11 @@ private:
     // Print the next upcoming event or “no upcoming events”.
     void printNextEvent();
 
-    void scheduleTask(const Event &e);
+    void scheduleTask(const Event &e,
+                      std::chrono::system_clock::duration notifyBefore =
+                          std::chrono::minutes(10),
+                      std::function<void()> notifyCb = {},
+                      std::function<void()> actionCb = {});
 
     // Add a recurring event using an existing RecurrencePattern. Returns the ID of the new event.
     std::string addRecurringEvent(const std::string &title,
