@@ -188,30 +188,30 @@ void Model::removeAllEvents()
     }
 }
 
-// Return the start of the day in the user's local time zone
-static std::chrono::system_clock::time_point startOfLocalDay(std::chrono::system_clock::time_point tp)
+// Return the start of the day in UTC regardless of the local time zone
+static std::chrono::system_clock::time_point startOfUtcDay(std::chrono::system_clock::time_point tp)
 {
     time_t t = std::chrono::system_clock::to_time_t(tp);
     std::tm tm_buf;
 #if defined(_MSC_VER)
-    localtime_s(&tm_buf, &t);
+    gmtime_s(&tm_buf, &t);
 #else
-    localtime_r(&t, &tm_buf);
+    gmtime_r(&t, &tm_buf);
 #endif
     tm_buf.tm_hour = 0;
     tm_buf.tm_min = 0;
     tm_buf.tm_sec = 0;
 #if defined(_MSC_VER)
-    time_t start_t = mktime(&tm_buf);
+    time_t start_t = _mkgmtime(&tm_buf);
 #else
-    time_t start_t = mktime(&tm_buf);
+    time_t start_t = timegm(&tm_buf);
 #endif
     return std::chrono::system_clock::from_time_t(start_t);
 }
 
 std::vector<Event> Model::getEventsOnDay(std::chrono::system_clock::time_point day) const
 {
-    auto start = startOfLocalDay(day);
+    auto start = startOfUtcDay(day);
     auto end = start + std::chrono::hours(24);
     std::vector<Event> result;
     std::lock_guard<std::mutex> lock(mutex_);
@@ -232,13 +232,13 @@ std::vector<Event> Model::getEventsInWeek(std::chrono::system_clock::time_point 
     time_t t = std::chrono::system_clock::to_time_t(day);
     std::tm tm_buf;
 #if defined(_MSC_VER)
-    localtime_s(&tm_buf, &t);
+    gmtime_s(&tm_buf, &t);
 #else
-    localtime_r(&t, &tm_buf);
+    gmtime_r(&t, &tm_buf);
 #endif
     int wday = tm_buf.tm_wday; // 0=Sunday
     int diff = (wday + 6) % 7; // days since Monday
-    auto start = startOfLocalDay(day) - std::chrono::hours(24 * diff);
+    auto start = startOfUtcDay(day) - std::chrono::hours(24 * diff);
     auto end = start + std::chrono::hours(24 * 7);
     std::vector<Event> result;
     std::lock_guard<std::mutex> lock(mutex_);
@@ -259,25 +259,25 @@ std::vector<Event> Model::getEventsInMonth(std::chrono::system_clock::time_point
     time_t t = std::chrono::system_clock::to_time_t(day);
     std::tm tm_buf;
 #if defined(_MSC_VER)
-    localtime_s(&tm_buf, &t);
+    gmtime_s(&tm_buf, &t);
 #else
-    localtime_r(&t, &tm_buf);
+    gmtime_r(&t, &tm_buf);
 #endif
     tm_buf.tm_mday = 1;
     tm_buf.tm_hour = 0;
     tm_buf.tm_min = 0;
     tm_buf.tm_sec = 0;
 #if defined(_MSC_VER)
-    time_t start_t = mktime(&tm_buf);
+    time_t start_t = _mkgmtime(&tm_buf);
 #else
-    time_t start_t = mktime(&tm_buf);
+    time_t start_t = timegm(&tm_buf);
 #endif
     auto start = std::chrono::system_clock::from_time_t(start_t);
     tm_buf.tm_mon += 1;
 #if defined(_MSC_VER)
-    time_t end_t = mktime(&tm_buf);
+    time_t end_t = _mkgmtime(&tm_buf);
 #else
-    time_t end_t = mktime(&tm_buf);
+    time_t end_t = timegm(&tm_buf);
 #endif
     auto end = std::chrono::system_clock::from_time_t(end_t);
 
@@ -297,7 +297,7 @@ std::vector<Event> Model::getEventsInMonth(std::chrono::system_clock::time_point
 
 int Model::removeEventsOnDay(std::chrono::system_clock::time_point day)
 {
-    auto start = startOfLocalDay(day);
+    auto start = startOfUtcDay(day);
     auto end = start + std::chrono::hours(24);
     std::vector<std::string> removedIds;
     std::lock_guard<std::mutex> lock(mutex_);
@@ -327,13 +327,13 @@ int Model::removeEventsInWeek(std::chrono::system_clock::time_point day)
     time_t t = std::chrono::system_clock::to_time_t(day);
     std::tm tm_buf;
 #if defined(_MSC_VER)
-    localtime_s(&tm_buf, &t);
+    gmtime_s(&tm_buf, &t);
 #else
-    localtime_r(&t, &tm_buf);
+    gmtime_r(&t, &tm_buf);
 #endif
     int wday = tm_buf.tm_wday;
     int diff = (wday + 6) % 7;
-    auto start = startOfLocalDay(day) - std::chrono::hours(24 * diff);
+    auto start = startOfUtcDay(day) - std::chrono::hours(24 * diff);
     auto end = start + std::chrono::hours(24 * 7);
     std::vector<std::string> removedIds;
     std::lock_guard<std::mutex> lock(mutex_);
