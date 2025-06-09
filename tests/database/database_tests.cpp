@@ -179,12 +179,54 @@ static void testYearlyPersistence() {
     std::remove(path);
 }
 
+static void testRemoveAllDatabase() {
+    const char* path = "test_persist.db";
+    std::remove(path);
+    {
+        SQLiteScheduleDatabase db(path);
+        Model m(&db);
+        auto time = makeTime(2025,6,10,12);
+        OneTimeEvent e("O","desc","title", time, hours(1));
+        m.addEvent(e);
+        m.removeAllEvents();
+    }
+    {
+        SQLiteScheduleDatabase db(path);
+        Model m(&db);
+        auto events = m.getNextNEvents(1);
+        assert(events.empty());
+    }
+    std::remove(path);
+}
+
+static void testRemoveBeforeDatabase() {
+    const char* path = "test_persist.db";
+    std::remove(path);
+    {
+        SQLiteScheduleDatabase db(path);
+        Model m(&db);
+        OneTimeEvent e1("1","d","t", makeTime(2025,6,1,9), hours(1));
+        OneTimeEvent e2("2","d","t", makeTime(2025,6,3,9), hours(1));
+        m.addEvent(e1); m.addEvent(e2);
+        m.removeEventsBefore(makeTime(2025,6,2,0));
+    }
+    {
+        SQLiteScheduleDatabase db(path);
+        Model m(&db);
+        auto events = m.getEvents(-1, makeTime(2025,6,4,0));
+        assert(events.size() == 1 && events[0].getId() == "2");
+    }
+    std::remove(path);
+}
+
 int main() {
     testRecurringPersistence();
     testOneTimePersistence();
     testWeeklyPersistence();
     testMonthlyPersistence();
     testYearlyPersistence();
+    testRemoveAllDatabase();
+    testRemoveBeforeDatabase();
     cout << "Database tests passed\n";
     return 0;
 }

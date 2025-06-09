@@ -51,6 +51,10 @@ C++ API → Database
 - **Capabilities**:
   - `POST /events` to add one‑time events.
   - `DELETE /events/{id}` to remove events.
+  - `DELETE /events` to remove all events.
+  - `DELETE /events/day/{YYYY-MM-DD}` to delete a day of events.
+  - `DELETE /events/week/{YYYY-MM-DD}` to delete the surrounding week.
+  - `DELETE /events/before/{YYYY-MM-DDTHH:MM}` to delete everything earlier.
   - `GET /events` and related endpoints to query the schedule.
 - **Invocation**: When ParserAgent identifies a scheduling intent or when
   OptimiserAgent proposes changes.
@@ -144,6 +148,8 @@ curl -X POST http://localhost:8080/events \
 - *"Add lunch with Alice at noon"* → ParserAgent → ScheduleAgent
 - *"What is my next event?"* → ParserAgent → ScheduleAgent (`GET /events/next`)
 - *"Remove event ABC123"* → ParserAgent → ScheduleAgent (`DELETE /events/ABC123`)
+- *"Clear my calendar"* → ParserAgent → ScheduleAgent (`DELETE /events`)
+- *"Delete everything before June"* → ParserAgent → ScheduleAgent (`DELETE /events/before/2025-06-01T00:00`)
 - *"Optimise my month"* → ParserAgent → OptimiserAgent → ScheduleAgent
 
 ## Extending the System
