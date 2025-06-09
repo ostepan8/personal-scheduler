@@ -12,7 +12,7 @@ int main()
     // Construct database and model using dependency injection
     SQLiteScheduleDatabase db("events.db");
     Model model(&db);
-    auto gcal = std::make_shared<GoogleCalendarApi>("service_account.json");
+    auto gcal = std::make_shared<GoogleCalendarApi>("calendar_integration/credentials.json");
     model.addCalendarApi(gcal);
 
     EventLoop loop(model);
