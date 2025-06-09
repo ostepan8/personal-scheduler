@@ -54,6 +54,18 @@ public:
     // Remove by ID. Returns true if at least one Event with that ID was erased.
     bool removeEvent(const std::string &id);
 
+    // Remove all events from the model
+    void removeAllEvents();
+
+    // Remove events occurring on the given day. Returns number removed.
+    int removeEventsOnDay(std::chrono::system_clock::time_point day);
+
+    // Remove events in the week that contains the given day. Returns number removed.
+    int removeEventsInWeek(std::chrono::system_clock::time_point day);
+
+    // Remove all events strictly before the specified time. Returns number removed.
+    int removeEventsBefore(std::chrono::system_clock::time_point time);
+
     // Generate a unique ID not currently in use
     std::string generateUniqueId() const;
 };

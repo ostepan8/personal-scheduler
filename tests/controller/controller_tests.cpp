@@ -176,6 +176,46 @@ static void testControllerAddRecurring()
     assert(ss.str().find("[" + id + "]") != string::npos);
 }
 
+static void testControllerRemoveAll()
+{
+    Model m;
+    OneTimeEvent e1("1","d","t", makeTime(2025,6,1,9), hours(1));
+    OneTimeEvent e2("2","d","t", makeTime(2025,6,2,9), hours(1));
+    m.addEvent(e1);
+    m.addEvent(e2);
+    StubView v(m);
+    Controller c(m, v);
+    c.removeAllEvents();
+    auto list = m.getNextNEvents(1);
+    assert(list.empty());
+}
+
+static void testControllerRemoveDay()
+{
+    Model m;
+    OneTimeEvent e1("1","d","t", makeTime(2025,6,1,9), hours(1));
+    OneTimeEvent e2("2","d","t", makeTime(2025,6,2,9), hours(1));
+    m.addEvent(e1); m.addEvent(e2);
+    StubView v(m);
+    Controller c(m, v);
+    c.removeEventsOnDay(makeTime(2025,6,1,0));
+    auto d = m.getEventsOnDay(makeTime(2025,6,1,0));
+    assert(d.empty());
+}
+
+static void testControllerRemoveBefore()
+{
+    Model m;
+    OneTimeEvent e1("1","d","t", makeTime(2025,6,1,9), hours(1));
+    OneTimeEvent e2("2","d","t", makeTime(2025,6,3,9), hours(1));
+    m.addEvent(e1); m.addEvent(e2);
+    StubView v(m);
+    Controller c(m, v);
+    c.removeEventsBefore(makeTime(2025,6,2,0));
+    auto evs = m.getEvents(-1, makeTime(2025,6,4,0));
+    assert(evs.size() == 1 && evs[0].getId() == "2");
+}
+
 int main()
 {
     testControllerParseFormat();
@@ -184,6 +224,9 @@ int main()
     testControllerPrintNextEvent();
     testControllerPrintNextEventNone();
     testControllerAddRecurring();
+    testControllerRemoveAll();
+    testControllerRemoveDay();
+    testControllerRemoveBefore();
     cout << "Controller tests passed\n";
     return 0;
 }

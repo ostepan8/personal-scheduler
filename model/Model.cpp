@@ -168,6 +168,16 @@ bool Model::removeEvent(const std::string &id)
     return removed;
 }
 
+void Model::removeAllEvents()
+{
+    std::lock_guard<std::mutex> lock(mutex_);
+    events.clear();
+    if (db_)
+    {
+        db_->removeAllEvents();
+    }
+}
+
 // Return the start of the day in the user's local time zone
 static std::chrono::system_clock::time_point startOfLocalDay(std::chrono::system_clock::time_point tp)
 {
@@ -273,4 +283,91 @@ std::vector<Event> Model::getEventsInMonth(std::chrono::system_clock::time_point
         result.push_back(e);
     }
     return result;
+}
+
+int Model::removeEventsOnDay(std::chrono::system_clock::time_point day)
+{
+    auto start = startOfLocalDay(day);
+    auto end = start + std::chrono::hours(24);
+    std::vector<std::string> removedIds;
+    std::lock_guard<std::mutex> lock(mutex_);
+    for (auto it = events.begin(); it != events.end();)
+    {
+        auto t = it->second->getTime();
+        if (t >= start && t < end)
+        {
+            removedIds.push_back(it->second->getId());
+            it = events.erase(it);
+        }
+        else
+        {
+            ++it;
+        }
+    }
+    if (db_)
+    {
+        for (const auto &id : removedIds)
+            db_->removeEvent(id);
+    }
+    return static_cast<int>(removedIds.size());
+}
+
+int Model::removeEventsInWeek(std::chrono::system_clock::time_point day)
+{
+    time_t t = std::chrono::system_clock::to_time_t(day);
+    std::tm tm_buf;
+#if defined(_MSC_VER)
+    localtime_s(&tm_buf, &t);
+#else
+    localtime_r(&t, &tm_buf);
+#endif
+    int wday = tm_buf.tm_wday;
+    int diff = (wday + 6) % 7;
+    auto start = startOfLocalDay(day) - std::chrono::hours(24 * diff);
+    auto end = start + std::chrono::hours(24 * 7);
+    std::vector<std::string> removedIds;
+    std::lock_guard<std::mutex> lock(mutex_);
+    for (auto it = events.begin(); it != events.end();)
+    {
+        auto t2 = it->second->getTime();
+        if (t2 >= start && t2 < end)
+        {
+            removedIds.push_back(it->second->getId());
+            it = events.erase(it);
+        }
+        else
+        {
+            ++it;
+        }
+    }
+    if (db_)
+    {
+        for (const auto &id : removedIds)
+            db_->removeEvent(id);
+    }
+    return static_cast<int>(removedIds.size());
+}
+
+int Model::removeEventsBefore(std::chrono::system_clock::time_point time)
+{
+    std::vector<std::string> removedIds;
+    std::lock_guard<std::mutex> lock(mutex_);
+    for (auto it = events.begin(); it != events.end();)
+    {
+        if (it->second->getTime() < time)
+        {
+            removedIds.push_back(it->second->getId());
+            it = events.erase(it);
+        }
+        else
+        {
+            ++it;
+        }
+    }
+    if (db_)
+    {
+        for (const auto &id : removedIds)
+            db_->removeEvent(id);
+    }
+    return static_cast<int>(removedIds.size());
 }
