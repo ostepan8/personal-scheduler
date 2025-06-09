@@ -12,6 +12,8 @@
 #include <ctime>
 #include <unordered_map>
 #include <functional>
+#include <algorithm>
+#include <cctype>
 #include "../utils/TimeUtils.h"
 #include <stdexcept>
 #include "../scheduler/ScheduledTask.h"
@@ -186,12 +188,34 @@ void Controller::run()
         getline(cin, actionName);
         auto act = ActionRegistry::getAction(actionName);
         if(!act) { cout << "Unknown action\n"; return; }
+
+        cout << "Enter notification lead times (e.g. 60m,30m or 1h). Blank for 10m: ";
+        string notifyStr; getline(cin, notifyStr);
+        std::vector<std::chrono::system_clock::duration> leadTimes;
+        if(notifyStr.empty()) {
+            leadTimes.push_back(std::chrono::minutes(10));
+        } else {
+            std::istringstream ns(notifyStr); string tok;
+            auto parseDur = [](std::string t){
+                t.erase(std::remove_if(t.begin(), t.end(), ::isspace), t.end());
+                if(t.empty()) return std::chrono::minutes(0);
+                char suf = t.back();
+                int val;
+                if(suf=='h' || suf=='H') { val = std::stoi(t.substr(0,t.size()-1)); return std::chrono::minutes(val*60); }
+                if(suf=='m' || suf=='M') { val = std::stoi(t.substr(0,t.size()-1)); return std::chrono::minutes(val); }
+                val = std::stoi(t); return std::chrono::minutes(val);
+            };
+            while(getline(ns,tok,',')) {
+                if(tok.empty()) continue;
+                leadTimes.push_back(parseDur(tok));
+            }
+            if(leadTimes.empty()) leadTimes.push_back(std::chrono::minutes(10));
+        }
+
         string id = model_.generateUniqueId();
         auto notifyCb = [note,id,title](){ note(id,title); };
-        auto task = std::make_shared<ScheduledTask>(id, desc, title, tp,
-                                                   hours(1), minutes(10),
-                                                   notifyCb, act);
-        loop_->addTask(task);
+        OneTimeEvent e{id, desc, title, tp, hours(1)};
+        scheduleTask(e, leadTimes, notifyCb, act);
         cout << "Added task [" << id << "]\n";
     };
 
@@ -301,7 +325,7 @@ void Controller::run()
 }
 
 void Controller::scheduleTask(const Event &e,
-                              std::chrono::system_clock::duration notifyBefore,
+                              std::vector<std::chrono::system_clock::duration> notifyBefore,
                               std::function<void()> notifyCb,
                               std::function<void()> actionCb)
 {
@@ -314,10 +338,19 @@ void Controller::scheduleTask(const Event &e,
         actionCb = [id = e.getId(), title = e.getTitle()]() {
             std::cout << "[" << id << "] \"" << title << "\" executing\n";
         };
+    auto now = std::chrono::system_clock::now();
+    std::vector<std::chrono::system_clock::time_point> notifyTimes;
+    if (e.getTime() - now >= std::chrono::minutes(10)) {
+        for (auto d : notifyBefore) {
+            auto tp = e.getTime() - d;
+            if (tp > now)
+                notifyTimes.push_back(tp);
+        }
+    }
 
     auto task = std::make_shared<ScheduledTask>(
         e.getId(), e.getDescription(), e.getTitle(), e.getTime(), e.getDuration(),
-        notifyBefore, std::move(notifyCb), std::move(actionCb));
+        notifyTimes, std::move(notifyCb), std::move(actionCb));
     loop_->addTask(task);
 }
 
