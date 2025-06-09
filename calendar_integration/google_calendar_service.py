@@ -24,6 +24,9 @@ class GoogleCalendarService(CalendarService):
             "start": {"dateTime": event.start, "timeZone": event.timezone},
             "end": {"dateTime": event.end, "timeZone": event.timezone},
         }
+        if event.id:
+            body["id"] = event.id
+
         created = (
             self.service.events()
             .insert(calendarId=self.calendar_id, body=body)
