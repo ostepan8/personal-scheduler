@@ -1,5 +1,6 @@
 #include "GoogleCalendarApi.h"
 #include "../utils/TimeUtils.h"
+#include "../model/RecurringEvent.h"
 #include <cstdlib>
 #include <string>
 
@@ -23,6 +24,37 @@ static void unsetEnv(const char* key) {
 }
 
 void GoogleCalendarApi::addEvent(const Event &e) {
+    const int maxOcc = 25;
+    if (e.isRecurring()) {
+        auto *re = dynamic_cast<const RecurringEvent *>(&e);
+        if (re) {
+            auto times = re->getNextNOccurrences(re->getTime() - std::chrono::seconds(1), maxOcc);
+            int idx = 0;
+            for (auto t : times) {
+                setEnv("GCAL_ACTION", "add");
+                setEnv("GCAL_CREDS", credentials_);
+                setEnv("GCAL_CALENDAR_ID", calendarId_);
+                setEnv("GCAL_TITLE", e.getTitle());
+                setEnv("GCAL_DESC", e.getDescription());
+                setEnv("GCAL_EVENT_ID", e.getId() + "_" + std::to_string(idx++));
+                auto start = TimeUtils::formatRFC3339UTC(t);
+                auto end = TimeUtils::formatRFC3339UTC(t + e.getDuration());
+                setEnv("GCAL_START", start);
+                setEnv("GCAL_END", end);
+                std::system("python3 -m calendar_integration.gcal_service");
+                unsetEnv("GCAL_ACTION");
+                unsetEnv("GCAL_CREDS");
+                unsetEnv("GCAL_CALENDAR_ID");
+                unsetEnv("GCAL_TITLE");
+                unsetEnv("GCAL_DESC");
+                unsetEnv("GCAL_EVENT_ID");
+                unsetEnv("GCAL_START");
+                unsetEnv("GCAL_END");
+            }
+            return;
+        }
+    }
+
     setEnv("GCAL_ACTION", "add");
     setEnv("GCAL_CREDS", credentials_);
     setEnv("GCAL_CALENDAR_ID", calendarId_);
