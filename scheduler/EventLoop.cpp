@@ -24,10 +24,10 @@ void EventLoop::stop() {
 void EventLoop::addTask(const std::shared_ptr<ScheduledTask> &task) {
     {
         std::lock_guard<std::mutex> lock(mtx_);
+        model_.addEvent(*task);
         queue_.push(task);
     }
     cv_.notify_one();
-    model_.addEvent(*task);
 }
 
 void EventLoop::threadFunc() {
