@@ -3,12 +3,16 @@
 #include "model/Model.h"
 #include "database/SQLiteScheduleDatabase.h"
 #include "scheduler/EventLoop.h"
+#include "calendar/GoogleCalendarApi.h"
 #include <vector>
+#include <memory>
 #include <iostream>
 
 int main() {
     SQLiteScheduleDatabase db("events.db");
     Model model(&db);
+    auto gcal = std::make_shared<GoogleCalendarApi>("service_account.json");
+    model.addCalendarApi(gcal);
     EventLoop loop(model);
     loop.start();
 
