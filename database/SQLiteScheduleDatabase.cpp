@@ -124,6 +124,19 @@ bool SQLiteScheduleDatabase::removeEvent(const std::string &id)
     return ok;
 }
 
+bool SQLiteScheduleDatabase::removeAllEvents()
+{
+    const char *sql = "DELETE FROM events;";
+    char *errMsg = nullptr;
+    if (sqlite3_exec(db_.get(), sql, nullptr, nullptr, &errMsg) != SQLITE_OK)
+    {
+        if (errMsg)
+            sqlite3_free(errMsg);
+        return false;
+    }
+    return true;
+}
+
 std::vector<std::unique_ptr<Event>> SQLiteScheduleDatabase::getAllEvents() const
 {
     const char *sql =

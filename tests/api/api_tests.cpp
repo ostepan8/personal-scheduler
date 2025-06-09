@@ -89,11 +89,81 @@ static void testCORSEnabled() {
     th.join();
 }
 
+static void testDeleteAllEndpoint() {
+    Model m;
+    OneTimeEvent e1("1","d","t", makeTime(2025,6,1,9), hours(1));
+    m.addEvent(e1);
+    ApiServer srv(m, 8089);
+    thread th(runServer, std::ref(srv));
+    this_thread::sleep_for(milliseconds(100));
+
+    httplib::Client cli("localhost", 8089);
+    auto res = cli.Delete("/events");
+    assert(res && res->status == 200);
+    auto j = json::parse(res->body);
+    assert(j["status"] == "ok");
+
+    auto res2 = cli.Get("/events");
+    auto j2 = json::parse(res2->body);
+    assert(j2["data"].size() == 0);
+
+    srv.stop();
+    th.join();
+}
+
+static void testDeleteDayEndpoint() {
+    Model m;
+    OneTimeEvent e1("1","d","t", makeTime(2025,6,1,9), hours(1));
+    m.addEvent(e1);
+    ApiServer srv(m, 8090);
+    thread th(runServer, std::ref(srv));
+    this_thread::sleep_for(milliseconds(100));
+
+    httplib::Client cli("localhost", 8090);
+    auto res = cli.Delete("/events/day/2025-06-01");
+    assert(res && res->status == 200);
+    auto j = json::parse(res->body);
+    assert(j["status"] == "ok");
+
+    auto res2 = cli.Get("/events");
+    auto j2 = json::parse(res2->body);
+    assert(j2["data"].size() == 0);
+
+    srv.stop();
+    th.join();
+}
+
+static void testDeleteBeforeEndpoint() {
+    Model m;
+    OneTimeEvent e1("1","d","t", makeTime(2025,6,1,9), hours(1));
+    OneTimeEvent e2("2","d","t", makeTime(2025,6,3,9), hours(1));
+    m.addEvent(e1); m.addEvent(e2);
+    ApiServer srv(m, 8091);
+    thread th(runServer, std::ref(srv));
+    this_thread::sleep_for(milliseconds(100));
+
+    httplib::Client cli("localhost", 8091);
+    auto res = cli.Delete("/events/before/2025-06-02T00:00");
+    assert(res && res->status == 200);
+    auto j = json::parse(res->body);
+    assert(j["status"] == "ok");
+
+    auto res2 = cli.Get("/events");
+    auto j2 = json::parse(res2->body);
+    assert(j2["data"].size() == 1);
+
+    srv.stop();
+    th.join();
+}
+
 int main() {
     testDayEndpoint();
     testWeekEndpoint();
     testMonthEndpoint();
     testCORSEnabled();
+    testDeleteAllEndpoint();
+    testDeleteDayEndpoint();
+    testDeleteBeforeEndpoint();
     cout << "API tests passed\n";
     return 0;
 }

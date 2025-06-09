@@ -42,6 +42,57 @@ static void testModelRemove()
     assert(all.size() == 1 && all[0].getId() == "2");
 }
 
+static void testModelRemoveAll()
+{
+    Model m;
+    OneTimeEvent e1("1","d","t", makeTime(2025,6,1,9), hours(1));
+    OneTimeEvent e2("2","d","t", makeTime(2025,6,2,9), hours(1));
+    m.addEvent(e1);
+    m.addEvent(e2);
+    m.removeAllEvents();
+    auto list = m.getNextNEvents(1);
+    assert(list.empty());
+}
+
+static void testModelRemoveDay()
+{
+    Model m;
+    OneTimeEvent e1("1","d","t", makeTime(2025,6,1,9), hours(1));
+    OneTimeEvent e2("2","d","t", makeTime(2025,6,1,15), hours(1));
+    OneTimeEvent e3("3","d","t", makeTime(2025,6,2,9), hours(1));
+    m.addEvent(e1); m.addEvent(e2); m.addEvent(e3);
+    int n = m.removeEventsOnDay(makeTime(2025,6,1,0));
+    assert(n == 2);
+    auto list = m.getEventsOnDay(makeTime(2025,6,1,0));
+    assert(list.empty());
+}
+
+static void testModelRemoveWeek()
+{
+    Model m;
+    OneTimeEvent e1("1","d","t", makeTime(2025,6,2,9), hours(1));
+    OneTimeEvent e2("2","d","t", makeTime(2025,6,5,9), hours(1));
+    OneTimeEvent e3("3","d","t", makeTime(2025,6,9,9), hours(1));
+    m.addEvent(e1); m.addEvent(e2); m.addEvent(e3);
+    int n = m.removeEventsInWeek(makeTime(2025,6,3,0));
+    assert(n == 2);
+    auto left = m.getEventsInWeek(makeTime(2025,6,3,0));
+    assert(left.empty());
+}
+
+static void testModelRemoveBefore()
+{
+    Model m;
+    OneTimeEvent e1("1","d","t", makeTime(2025,6,1,9), hours(1));
+    OneTimeEvent e2("2","d","t", makeTime(2025,6,2,9), hours(1));
+    OneTimeEvent e3("3","d","t", makeTime(2025,6,3,9), hours(1));
+    m.addEvent(e1); m.addEvent(e2); m.addEvent(e3);
+    int n = m.removeEventsBefore(makeTime(2025,6,2,12));
+    assert(n == 2);
+    auto list = m.getEvents(-1, makeTime(2025,6,4,0));
+    assert(list.size() == 1 && list[0].getId() == "3");
+}
+
 static void testModelGetEventsLimit()
 {
     Model m;
@@ -201,6 +252,10 @@ int main()
 {
     testModelAddAndRetrieve();
     testModelRemove();
+    testModelRemoveAll();
+    testModelRemoveDay();
+    testModelRemoveWeek();
+    testModelRemoveBefore();
     testModelGetEventsLimit();
     testModelWithDailyRecurring();
     testNextNWithRecurring();

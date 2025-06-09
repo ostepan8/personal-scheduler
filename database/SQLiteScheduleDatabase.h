@@ -12,6 +12,7 @@ public:
 
     bool addEvent(const Event &e) override;
     bool removeEvent(const std::string &id) override;
+    bool removeAllEvents() override;
     std::vector<std::unique_ptr<Event>> getAllEvents() const override;
 
 private:
