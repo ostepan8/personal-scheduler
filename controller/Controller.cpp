@@ -17,6 +17,8 @@
 #include "../scheduler/ScheduledTask.h"
 #include "../utils/ActionRegistry.h"
 #include "../utils/BuiltinActions.h"
+#include "../utils/NotificationRegistry.h"
+#include "../utils/BuiltinNotifiers.h"
 #include <memory>
 
 using namespace std;
@@ -90,6 +92,7 @@ void Controller::run()
     // Register built-in actions. Additional actions can be registered
     // elsewhere before Controller::run is invoked.
     BuiltinActions::registerAll();
+    BuiltinNotifiers::registerAll();
 
 
     using Cmd = std::function<void()>;
@@ -157,13 +160,23 @@ void Controller::run()
 
     commands["addtask"] = [&]() {
         if (!loop_) { std::cout << "(event loop not running)\n"; return; }
-        string title, desc, timestr, actionName;
+        string title, desc, timestr, notifierName, actionName;
         cout << "Enter title: "; getline(cin, title);
         cout << "Enter description: "; getline(cin, desc);
         cout << "Enter time (YYYY-MM-DD HH:MM): "; getline(cin, timestr);
         system_clock::time_point tp;
         try { tp = parseTimePoint(timestr); } catch(const exception &e) {
             cout << e.what() << "\n"; return; }
+        auto notifiers = NotificationRegistry::availableNotifiers();
+        if(notifiers.empty()) {
+            cout << "No notifiers registered\n"; return; }
+        cout << "Available notifiers:";
+        for(const auto &n : notifiers) cout << " " << n;
+        cout << "\nEnter notifier name: ";
+        getline(cin, notifierName);
+        auto note = NotificationRegistry::getNotifier(notifierName);
+        if(!note) { cout << "Unknown notifier\n"; return; }
+
         auto actions = ActionRegistry::availableActions();
         if(actions.empty()) {
             cout << "No actions registered\n"; return; }
@@ -174,9 +187,10 @@ void Controller::run()
         auto act = ActionRegistry::getAction(actionName);
         if(!act) { cout << "Unknown action\n"; return; }
         string id = model_.generateUniqueId();
+        auto notifyCb = [note,id,title](){ note(id,title); };
         auto task = std::make_shared<ScheduledTask>(id, desc, title, tp,
                                                    hours(1), minutes(10),
-                                                   [](){}, act);
+                                                   notifyCb, act);
         loop_->addTask(task);
         cout << "Added task [" << id << "]\n";
     };
