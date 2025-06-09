@@ -28,6 +28,7 @@ void GoogleCalendarApi::addEvent(const Event &e) {
     setEnv("GCAL_CALENDAR_ID", calendarId_);
     setEnv("GCAL_TITLE", e.getTitle());
     setEnv("GCAL_DESC", e.getDescription());
+    setEnv("GCAL_EVENT_ID", e.getId());
     auto start = TimeUtils::formatRFC3339UTC(e.getTime());
     auto end = TimeUtils::formatRFC3339UTC(e.getTime() + e.getDuration());
     setEnv("GCAL_START", start);
@@ -38,6 +39,7 @@ void GoogleCalendarApi::addEvent(const Event &e) {
     unsetEnv("GCAL_CALENDAR_ID");
     unsetEnv("GCAL_TITLE");
     unsetEnv("GCAL_DESC");
+    unsetEnv("GCAL_EVENT_ID");
     unsetEnv("GCAL_START");
     unsetEnv("GCAL_END");
 }
