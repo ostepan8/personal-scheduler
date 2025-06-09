@@ -8,6 +8,8 @@
 #include "Event.h"
 #include "ReadOnlyModel.h"
 #include "../database/IScheduleDatabase.h"
+#include "../calendar/CalendarApi.h"
+#include <vector>
 
 /*
   Model extends ReadOnlyModel by adding mutators (addEvent, removeEvent).
@@ -21,6 +23,7 @@ private:
     IScheduleDatabase *db_;
     mutable std::mutex mutex_;
     std::chrono::system_clock::time_point preloadEnd_;
+    std::vector<std::shared_ptr<CalendarApi>> apis_;
 
     // Check if an event ID already exists in the current list
     bool eventExists(const std::string &id) const;
@@ -70,4 +73,7 @@ public:
 
     // Generate a unique ID not currently in use
     std::string generateUniqueId() const;
+
+    // Register an external calendar API to mirror changes
+    void addCalendarApi(std::shared_ptr<CalendarApi> api);
 };

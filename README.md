@@ -74,3 +74,14 @@ Notifications work the same way. `NotificationRegistry::registerNotifier` binds
 a name to a callback taking the event ID and title. `BuiltinNotifiers` registers
 a simple `console` notifier that prints to stdout. When adding tasks via the CLI
 you can choose both a notifier and an action.
+
+## Calendar Integrations
+
+External calendars can be kept in sync by attaching `CalendarApi` implementations to the model. The provided `GoogleCalendarApi` launches a small Python helper that talks to Google Calendar using a service account. Register the API after constructing your model:
+
+```cpp
+auto gcal = std::make_shared<GoogleCalendarApi>("service_account.json");
+model.addCalendarApi(gcal);
+```
+
+Whenever events are added or removed, the Google calendar is updated automatically. Additional providers can subclass `CalendarApi` and call their own scripts.
