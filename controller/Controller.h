@@ -5,6 +5,8 @@
 #include "../model/Model.h"
 #include "../model/recurrence/RecurrencePattern.h"
 #include "../view/View.h"
+#include "../scheduler/EventLoop.h"
+#include <chrono>
 
 /*
   Controller coordinates a Model and a View.  It runs a simple CLI loop:
@@ -20,7 +22,7 @@ class Controller
 {
 public:
     // Constructor takes a reference to a Model (to mutate) and a View (to render).
-    Controller(Model &model, View &view);
+    Controller(Model &model, View &view, EventLoop *loop = nullptr);
 
     // Run the main command loop until “quit” is entered.
     void run();
@@ -28,6 +30,7 @@ public:
 private:
     Model &model_;
     View &view_;
+    EventLoop *loop_;
 
     // Convert a UTC time_point to a local time string "YYYY-MM-DD HH:MM".
     static std::string formatTimePoint(const std::chrono::system_clock::time_point &tp);
@@ -44,6 +47,8 @@ private:
 
     // Print the next upcoming event or “no upcoming events”.
     void printNextEvent();
+
+    void scheduleTask(const Event &e);
 
     // Add a recurring event using an existing RecurrencePattern. Returns the ID of the new event.
     std::string addRecurringEvent(const std::string &title,
