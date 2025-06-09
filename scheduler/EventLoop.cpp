@@ -41,11 +41,11 @@ void EventLoop::threadFunc() {
         auto next = queue_.top();
         auto now = std::chrono::system_clock::now();
 
-        if (!next->notified() && now >= next->getNotifyTime()) {
+        if (next->hasPendingNotifications() && now >= next->getNextNotifyTime()) {
             lock.unlock();
             next->notify();
             lock.lock();
-            next->setNotified(true);
+            next->markNotificationSent();
             continue;
         }
 
@@ -58,8 +58,9 @@ void EventLoop::threadFunc() {
             continue;
         }
 
-        auto wake = next->notified() ? next->getTime()
-                                     : std::min(next->getNotifyTime(), next->getTime());
+        auto wake = next->getTime();
+        if (next->hasPendingNotifications())
+            wake = std::min(wake, next->getNextNotifyTime());
         cv_.wait_until(lock, wake);
     }
 }
