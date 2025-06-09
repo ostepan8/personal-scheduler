@@ -7,6 +7,7 @@
 #include "../../model/recurrence/MonthlyRecurrence.h"
 #include "../../model/recurrence/YearlyRecurrence.h"
 #include "../../utils/WeekDay.h"
+#include "../../utils/TimeUtils.h"
 
 using namespace std;
 using namespace chrono;
@@ -106,12 +107,69 @@ void testYearlyRecurrence()
     assert(!rec.isDueOn(makeTime(2025,2,27,10)));
 }
 
+void testDailyRecurrenceDST()
+{
+    const char* prevPtr = getenv("TZ");
+    std::string prev = prevPtr ? std::string(prevPtr) : std::string();
+    bool hadPrev = prevPtr != nullptr;
+
+    setenv("TZ", "America/New_York", 1);
+    tzset();
+
+    auto start = TimeUtils::parseTimePoint("2025-03-08 09:00");
+    DailyRecurrence rec(start, 1, 3);
+
+    auto occ = rec.getNextNOccurrences(start - seconds(1), 3);
+    assert(TimeUtils::formatTimePoint(occ[0]) == "2025-03-08 09:00");
+    assert(TimeUtils::formatTimePoint(occ[1]) == "2025-03-09 10:00");
+    assert(TimeUtils::formatTimePoint(occ[2]) == "2025-03-10 10:00");
+
+    if (hadPrev)
+        setenv("TZ", prev.c_str(), 1);
+    else
+        unsetenv("TZ");
+    tzset();
+}
+
+void testRecurringCrossTimeZones()
+{
+    const char* prevPtr = getenv("TZ");
+    std::string prev = prevPtr ? std::string(prevPtr) : std::string();
+    bool hadPrev = prevPtr != nullptr;
+
+    setenv("TZ", "America/New_York", 1);
+    tzset();
+    auto start = TimeUtils::parseTimePoint("2025-03-08 09:00");
+    DailyRecurrence rec(start, 1, 3);
+    auto occ = rec.getNextNOccurrences(start - seconds(1), 3);
+
+    setenv("TZ", "Asia/Tokyo", 1);
+    tzset();
+    assert(TimeUtils::formatTimePoint(occ[0]) == "2025-03-08 23:00");
+    assert(TimeUtils::formatTimePoint(occ[1]) == "2025-03-09 23:00");
+    assert(TimeUtils::formatTimePoint(occ[2]) == "2025-03-10 23:00");
+
+    setenv("TZ", "America/Mexico_City", 1);
+    tzset();
+    assert(TimeUtils::formatTimePoint(occ[0]) == "2025-03-08 08:00");
+    assert(TimeUtils::formatTimePoint(occ[1]) == "2025-03-09 08:00");
+    assert(TimeUtils::formatTimePoint(occ[2]) == "2025-03-10 08:00");
+
+    if (hadPrev)
+        setenv("TZ", prev.c_str(), 1);
+    else
+        unsetenv("TZ");
+    tzset();
+}
+
 int main()
 {
     testDailyRecurrence();
     testWeeklyRecurrence();
     testMonthlyRecurrence();
     testYearlyRecurrence();
+    testDailyRecurrenceDST();
+    testRecurringCrossTimeZones();
     std::cout << "All recurrence tests passed\n";
     return 0;
 }
