@@ -85,3 +85,4 @@ model.addCalendarApi(gcal);
 ```
 
 Whenever events are added or removed, the Google calendar is updated automatically. Additional providers can subclass `CalendarApi` and call their own scripts.
+Recurring events are exported as the next 25 occurrences so your Google calendar shows them in advance.
