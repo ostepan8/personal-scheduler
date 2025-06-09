@@ -169,6 +169,66 @@ void ApiServer::setupRoutes()
         }
         res.set_content(out.dump(), "application/json"); });
 
+    server_.Delete("/events", [this](const httplib::Request &, httplib::Response &res)
+                   {
+        res.set_header("Access-Control-Allow-Origin", "*");
+        std::cout << "DELETE /events" << std::endl;
+        json out;
+        try {
+            model_.removeAllEvents();
+            out["status"] = "ok";
+        } catch (const std::exception &ex) {
+            out = json{{"status", "error"}, {"message", ex.what()}};
+        }
+        res.set_content(out.dump(), "application/json"); });
+
+    server_.Delete(R"(/events/day/(\d{4}-\d{2}-\d{2}))", [this](const httplib::Request &req, httplib::Response &res)
+                   {
+        res.set_header("Access-Control-Allow-Origin", "*");
+        std::cout << "DELETE /events/day/" << req.matches[1] << std::endl;
+        json out;
+        try {
+            auto day = parseDate(req.matches[1]);
+            int n = model_.removeEventsOnDay(day);
+            out["status"] = "ok";
+            out["removed"] = n;
+        } catch (const std::exception &ex) {
+            out = json{{"status", "error"}, {"message", ex.what()}};
+        }
+        res.set_content(out.dump(), "application/json"); });
+
+    server_.Delete(R"(/events/week/(\d{4}-\d{2}-\d{2}))", [this](const httplib::Request &req, httplib::Response &res)
+                   {
+        res.set_header("Access-Control-Allow-Origin", "*");
+        std::cout << "DELETE /events/week/" << req.matches[1] << std::endl;
+        json out;
+        try {
+            auto day = parseDate(req.matches[1]);
+            int n = model_.removeEventsInWeek(day);
+            out["status"] = "ok";
+            out["removed"] = n;
+        } catch (const std::exception &ex) {
+            out = json{{"status", "error"}, {"message", ex.what()}};
+        }
+        res.set_content(out.dump(), "application/json"); });
+
+    server_.Delete(R"(/events/before/(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}))", [this](const httplib::Request &req, httplib::Response &res)
+                   {
+        res.set_header("Access-Control-Allow-Origin", "*");
+        std::cout << "DELETE /events/before/" << req.matches[1] << std::endl;
+        json out;
+        try {
+            std::string ts = req.matches[1];
+            for (auto &c : ts) if (c == 'T') c = ' ';
+            auto tp = parseTimePoint(ts);
+            int n = model_.removeEventsBefore(tp);
+            out["status"] = "ok";
+            out["removed"] = n;
+        } catch (const std::exception &ex) {
+            out = json{{"status", "error"}, {"message", ex.what()}};
+        }
+        res.set_content(out.dump(), "application/json"); });
+
     server_.Delete(R"(/events/(.+))", [this](const httplib::Request &req, httplib::Response &res)
                    {
                     res.set_header("Access-Control-Allow-Origin", "*");

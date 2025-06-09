@@ -27,6 +27,18 @@ public:
     // Run the main command loop until “quit” is entered.
     void run();
 
+    // Remove all events from the model
+    void removeAllEvents();
+
+    // Remove events on a specific day
+    void removeEventsOnDay(std::chrono::system_clock::time_point day);
+
+    // Remove events in the week containing the given day
+    void removeEventsInWeek(std::chrono::system_clock::time_point day);
+
+    // Remove events before the given time
+    void removeEventsBefore(std::chrono::system_clock::time_point time);
+
 private:
     Model &model_;
     View &view_;

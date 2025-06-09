@@ -157,6 +157,38 @@ void Controller::run()
             cout << "No event with ID [" << id << "] found.\n";
     };
 
+    commands["removeday"] = [&]() {
+        cout << "Enter date (YYYY-MM-DD): ";
+        string d; getline(cin, d);
+        system_clock::time_point day;
+        try { day = parseDate(d); } catch(const exception &e) { cout << e.what() << "\n"; return; }
+        int n = model_.removeEventsOnDay(day);
+        cout << "Removed " << n << " events.\n";
+    };
+
+    commands["removeweek"] = [&]() {
+        cout << "Enter date within week (YYYY-MM-DD): ";
+        string d; getline(cin, d);
+        system_clock::time_point day;
+        try { day = parseDate(d); } catch(const exception &e) { cout << e.what() << "\n"; return; }
+        int n = model_.removeEventsInWeek(day);
+        cout << "Removed " << n << " events.\n";
+    };
+
+    commands["removebefore"] = [&]() {
+        cout << "Enter time (YYYY-MM-DD HH:MM): ";
+        string ts; getline(cin, ts);
+        system_clock::time_point tp;
+        try { tp = parseTimePoint(ts); } catch(const exception &e) { cout << e.what() << "\n"; return; }
+        int n = model_.removeEventsBefore(tp);
+        cout << "Removed " << n << " events.\n";
+    };
+
+    commands["clear"] = [&]() {
+        removeAllEvents();
+        cout << "All events removed.\n";
+    };
+
     commands["list"] = [&]() { view_.render(); };
     commands["next"] = [&]() { printNextEvent(); };
 
@@ -196,7 +228,7 @@ void Controller::run()
 
     bool done = false;
     string line;
-    cout << "Commands: add addat addrec remove list next day week month nextn quit\n";
+    cout << "Commands: add addat addrec remove removeday removeweek removebefore clear list next day week month nextn quit\n";
     while (!done)
     {
         cout << "> ";
@@ -235,4 +267,24 @@ void Controller::scheduleTask(const Event &e)
             std::cout << "[" << id << "] \"" << title << "\" executing\n";
         });
     loop_->addTask(task);
+}
+
+void Controller::removeAllEvents()
+{
+    model_.removeAllEvents();
+}
+
+void Controller::removeEventsOnDay(std::chrono::system_clock::time_point day)
+{
+    model_.removeEventsOnDay(day);
+}
+
+void Controller::removeEventsInWeek(std::chrono::system_clock::time_point day)
+{
+    model_.removeEventsInWeek(day);
+}
+
+void Controller::removeEventsBefore(std::chrono::system_clock::time_point time)
+{
+    model_.removeEventsBefore(time);
 }

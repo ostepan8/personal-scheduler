@@ -11,5 +11,6 @@ public:
 
     virtual bool addEvent(const Event &e) = 0;
     virtual bool removeEvent(const std::string &id) = 0;
+    virtual bool removeAllEvents() = 0;
     virtual std::vector<std::unique_ptr<Event>> getAllEvents() const = 0;
 };
