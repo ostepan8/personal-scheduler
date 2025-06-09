@@ -21,6 +21,12 @@ public:
         : id(id), description(desc), title(title), timeUtc(time), duration(duration), recurringFlag(false) {}
     virtual ~Event() = default;
     virtual std::unique_ptr<Event> clone() const { return std::make_unique<Event>(*this); }
+
+    // Called some minutes before the scheduled time. Default does nothing.
+    virtual void notify() {}
+
+    // Called when the scheduled time arrives. Default does nothing.
+    virtual void execute() {}
     // Returned value is in UTC
     chrono::system_clock::time_point getTime() const { return timeUtc; }
     chrono::system_clock::duration getDuration() const { return duration; }

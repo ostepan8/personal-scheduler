@@ -1,6 +1,6 @@
 # Compiler and flags
 CXX      = g++
-CXXFLAGS = -std=c++14 -Wall -Iapi -Iexternal/json
+CXXFLAGS = -std=c++14 -Wall -Iapi -Iexternal/json -Ischeduler
 
 
 
@@ -16,7 +16,8 @@ SRCS = main.cpp \
        model/recurrence/YearlyRecurrence.cpp \
        view/TextualView.cpp \
        api/ApiServer.cpp \
-       database/SQLiteScheduleDatabase.cpp
+       database/SQLiteScheduleDatabase.cpp \
+       scheduler/EventLoop.cpp
 
 # Object files (replace .cpp with .o)
 OBJS = $(SRCS:.cpp=.o)
