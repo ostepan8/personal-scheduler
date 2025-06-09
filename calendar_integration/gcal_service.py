@@ -18,7 +18,8 @@ def main():
         start = os.environ["GCAL_START"]
         end = os.environ["GCAL_END"]
         desc = os.environ.get("GCAL_DESC", "")
-        event = Event(summary=title, start=start, end=end, description=desc)
+        event_id = os.environ.get("GCAL_EVENT_ID")
+        event = Event(summary=title, start=start, end=end, description=desc, id=event_id)
         service.add_event(event)
     elif action == "delete":
         event_id = os.environ["GCAL_EVENT_ID"]
