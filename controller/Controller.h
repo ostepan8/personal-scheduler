@@ -40,6 +40,12 @@ public:
     // Remove events before the given time
     void removeEventsBefore(std::chrono::system_clock::time_point time);
 
+    void scheduleTask(const Event &e,
+                      std::chrono::system_clock::duration notifyBefore =
+                          std::chrono::minutes(10),
+                      std::function<void()> notifyCb = {},
+                      std::function<void()> actionCb = {});
+
 private:
     Model &model_;
     View &view_;
@@ -60,12 +66,6 @@ private:
 
     // Print the next upcoming event or “no upcoming events”.
     void printNextEvent();
-
-    void scheduleTask(const Event &e,
-                      std::chrono::system_clock::duration notifyBefore =
-                          std::chrono::minutes(10),
-                      std::function<void()> notifyCb = {},
-                      std::function<void()> actionCb = {});
 
     // Add a recurring event using an existing RecurrencePattern. Returns the ID of the new event.
     std::string addRecurringEvent(const std::string &title,
