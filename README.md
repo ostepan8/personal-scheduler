@@ -55,3 +55,10 @@ events. Actions are registered via `ActionRegistry::registerAction` and can be
 referenced when creating tasks with the `addtask` command. `BuiltinActions`
 provides a collection of static helpers and a `registerAll()` method that
 registers default actions like `hello` and `fetch_example`.
+
+## Notification Registry
+
+Notifications work the same way. `NotificationRegistry::registerNotifier` binds
+a name to a callback taking the event ID and title. `BuiltinNotifiers` registers
+a simple `console` notifier that prints to stdout. When adding tasks via the CLI
+you can choose both a notifier and an action.
