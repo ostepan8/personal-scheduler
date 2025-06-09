@@ -41,10 +41,15 @@ public:
     void removeEventsBefore(std::chrono::system_clock::time_point time);
 
     void scheduleTask(const Event &e,
-                      std::chrono::system_clock::duration notifyBefore =
-                          std::chrono::minutes(10),
+                      std::vector<std::chrono::system_clock::duration> notifyBefore =
+                          {std::chrono::minutes(10)},
                       std::function<void()> notifyCb = {},
                       std::function<void()> actionCb = {});
+    // void scheduleTask(const Event &e,
+    //                   std::chrono::system_clock::duration notifyBefore =
+    //                       std::chrono::minutes(10),
+    //                   std::function<void()> notifyCb = {},
+    //                   std::function<void()> actionCb = {});
 
 private:
     Model &model_;

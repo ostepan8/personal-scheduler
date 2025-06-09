@@ -12,9 +12,9 @@ using json = nlohmann::json;
 using namespace std::chrono;
 
 using TimeUtils::formatTimePoint;
-using TimeUtils::parseTimePoint;
 using TimeUtils::parseDate;
 using TimeUtils::parseMonth;
+using TimeUtils::parseTimePoint;
 
 ApiServer::ApiServer(Model &model, int port)
     : model_(model), port_(port)
