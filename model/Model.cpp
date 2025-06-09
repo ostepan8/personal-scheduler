@@ -204,12 +204,23 @@ bool Model::removeEvent(const std::string &id)
 
 void Model::removeAllEvents()
 {
-    std::lock_guard<std::mutex> lock(mutex_);
-    events.clear();
-    if (db_)
+    std::vector<std::unique_ptr<Event>> removed;
+    std::vector<std::shared_ptr<CalendarApi>> apisCopy;
     {
-        db_->removeAllEvents();
+        std::lock_guard<std::mutex> lock(mutex_);
+        for (auto &kv : events)
+            removed.push_back(kv.second->clone());
+
+        events.clear();
+        if (db_)
+        {
+            db_->removeAllEvents();
+        }
+        apisCopy = apis_;
     }
+    for (const auto &e : removed)
+        for (auto &api : apisCopy)
+            api->deleteEvent(*e);
 }
 
 // Return the start of the day in the user's local time zone
@@ -324,25 +335,34 @@ int Model::removeEventsOnDay(std::chrono::system_clock::time_point day)
     auto start = startOfLocalDay(day);
     auto end = start + std::chrono::hours(24);
     std::vector<std::string> removedIds;
-    std::lock_guard<std::mutex> lock(mutex_);
-    for (auto it = events.begin(); it != events.end();)
+    std::vector<std::unique_ptr<Event>> removedEvents;
+    std::vector<std::shared_ptr<CalendarApi>> apisCopy;
     {
-        auto t = it->second->getTime();
-        if (t >= start && t < end)
+        std::lock_guard<std::mutex> lock(mutex_);
+        for (auto it = events.begin(); it != events.end();)
         {
-            removedIds.push_back(it->second->getId());
-            it = events.erase(it);
+            auto t = it->second->getTime();
+            if (t >= start && t < end)
+            {
+                removedIds.push_back(it->second->getId());
+                removedEvents.push_back(it->second->clone());
+                it = events.erase(it);
+            }
+            else
+            {
+                ++it;
+            }
         }
-        else
+        if (db_)
         {
-            ++it;
+            for (const auto &id : removedIds)
+                db_->removeEvent(id);
         }
+        apisCopy = apis_;
     }
-    if (db_)
-    {
-        for (const auto &id : removedIds)
-            db_->removeEvent(id);
-    }
+    for (const auto &e : removedEvents)
+        for (auto &api : apisCopy)
+            api->deleteEvent(*e);
     return static_cast<int>(removedIds.size());
 }
 
@@ -360,48 +380,66 @@ int Model::removeEventsInWeek(std::chrono::system_clock::time_point day)
     auto start = startOfLocalDay(day) - std::chrono::hours(24 * diff);
     auto end = start + std::chrono::hours(24 * 7);
     std::vector<std::string> removedIds;
-    std::lock_guard<std::mutex> lock(mutex_);
-    for (auto it = events.begin(); it != events.end();)
+    std::vector<std::unique_ptr<Event>> removedEvents;
+    std::vector<std::shared_ptr<CalendarApi>> apisCopy;
     {
-        auto t2 = it->second->getTime();
-        if (t2 >= start && t2 < end)
+        std::lock_guard<std::mutex> lock(mutex_);
+        for (auto it = events.begin(); it != events.end();)
         {
-            removedIds.push_back(it->second->getId());
-            it = events.erase(it);
+            auto t2 = it->second->getTime();
+            if (t2 >= start && t2 < end)
+            {
+                removedIds.push_back(it->second->getId());
+                removedEvents.push_back(it->second->clone());
+                it = events.erase(it);
+            }
+            else
+            {
+                ++it;
+            }
         }
-        else
+        if (db_)
         {
-            ++it;
+            for (const auto &id : removedIds)
+                db_->removeEvent(id);
         }
+        apisCopy = apis_;
     }
-    if (db_)
-    {
-        for (const auto &id : removedIds)
-            db_->removeEvent(id);
-    }
+    for (const auto &e : removedEvents)
+        for (auto &api : apisCopy)
+            api->deleteEvent(*e);
     return static_cast<int>(removedIds.size());
 }
 
 int Model::removeEventsBefore(std::chrono::system_clock::time_point time)
 {
     std::vector<std::string> removedIds;
-    std::lock_guard<std::mutex> lock(mutex_);
-    for (auto it = events.begin(); it != events.end();)
+    std::vector<std::unique_ptr<Event>> removedEvents;
+    std::vector<std::shared_ptr<CalendarApi>> apisCopy;
     {
-        if (it->second->getTime() < time)
+        std::lock_guard<std::mutex> lock(mutex_);
+        for (auto it = events.begin(); it != events.end();)
         {
-            removedIds.push_back(it->second->getId());
-            it = events.erase(it);
+            if (it->second->getTime() < time)
+            {
+                removedIds.push_back(it->second->getId());
+                removedEvents.push_back(it->second->clone());
+                it = events.erase(it);
+            }
+            else
+            {
+                ++it;
+            }
         }
-        else
+        if (db_)
         {
-            ++it;
+            for (const auto &id : removedIds)
+                db_->removeEvent(id);
         }
+        apisCopy = apis_;
     }
-    if (db_)
-    {
-        for (const auto &id : removedIds)
-            db_->removeEvent(id);
-    }
+    for (const auto &e : removedEvents)
+        for (auto &api : apisCopy)
+            api->deleteEvent(*e);
     return static_cast<int>(removedIds.size());
 }
