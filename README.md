@@ -21,6 +21,18 @@ loads all events from this database, reconstructing recurring patterns so
 commands like `list` and `nextn` work across restarts. The database tests in
 `tests/database` verify this behavior.
 
+### Preload Horizon
+
+`Model` can optionally limit how far ahead to preload events from the database.
+Pass a number of days as the second constructor argument. A negative value (the
+default) loads every stored event:
+
+```cpp
+// Only load events occurring in the next 30 days
+SQLiteScheduleDatabase db("events.db");
+Model m(&db, 30);
+```
+
 ## Event Loop
 
 The scheduler now includes an active `EventLoop` component. Tasks derived from
