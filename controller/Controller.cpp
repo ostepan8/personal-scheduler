@@ -15,6 +15,8 @@
 #include "../utils/TimeUtils.h"
 #include <stdexcept>
 #include "../scheduler/ScheduledTask.h"
+#include "../utils/ActionRegistry.h"
+#include "../utils/BuiltinActions.h"
 #include <memory>
 
 using namespace std;
@@ -85,6 +87,11 @@ void Controller::run()
     cout << "(All times are entered and displayed in local time,\n"
             " but stored internally in UTC.)\n";
 
+    // Register built-in actions. Additional actions can be registered
+    // elsewhere before Controller::run is invoked.
+    BuiltinActions::registerAll();
+
+
     using Cmd = std::function<void()>;
     std::unordered_map<std::string, Cmd> commands;
 
@@ -146,6 +153,32 @@ void Controller::run()
         }
         string id = addRecurringEvent(title, desc, start, hours(1), pat);
         cout << "Added recurring event [" << id << "]\n";
+    };
+
+    commands["addtask"] = [&]() {
+        if (!loop_) { std::cout << "(event loop not running)\n"; return; }
+        string title, desc, timestr, actionName;
+        cout << "Enter title: "; getline(cin, title);
+        cout << "Enter description: "; getline(cin, desc);
+        cout << "Enter time (YYYY-MM-DD HH:MM): "; getline(cin, timestr);
+        system_clock::time_point tp;
+        try { tp = parseTimePoint(timestr); } catch(const exception &e) {
+            cout << e.what() << "\n"; return; }
+        auto actions = ActionRegistry::availableActions();
+        if(actions.empty()) {
+            cout << "No actions registered\n"; return; }
+        cout << "Available actions:";
+        for(const auto &n : actions) cout << " " << n;
+        cout << "\nEnter action name: ";
+        getline(cin, actionName);
+        auto act = ActionRegistry::getAction(actionName);
+        if(!act) { cout << "Unknown action\n"; return; }
+        string id = model_.generateUniqueId();
+        auto task = std::make_shared<ScheduledTask>(id, desc, title, tp,
+                                                   hours(1), minutes(10),
+                                                   [](){}, act);
+        loop_->addTask(task);
+        cout << "Added task [" << id << "]\n";
     };
 
     commands["remove"] = [&]() {
@@ -228,7 +261,7 @@ void Controller::run()
 
     bool done = false;
     string line;
-    cout << "Commands: add addat addrec remove removeday removeweek removebefore clear list next day week month nextn quit\n";
+    cout << "Commands: add addat addrec addtask remove removeday removeweek removebefore clear list next day week month nextn quit\n";
     while (!done)
     {
         cout << "> ";
