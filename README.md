@@ -28,3 +28,22 @@ The scheduler now includes an active `EventLoop` component. Tasks derived from
 callbacks. The loop runs in a background thread, dispatching notifications a
 few minutes before each task executes and invoking the task's action at the
 scheduled time.
+
+## Customising Notifications and Actions
+
+`ScheduledTask` allows full control over when notifications occur and what
+happens when a task runs. You can supply your own callback functions – perfect
+for triggering web requests, talking to a Raspberry Pi or scraping a website.
+
+```cpp
+// Notify 5 minutes before and call a custom action
+ScheduledTask task(
+    "abc", "demo", "Demo Task", when,
+    std::chrono::hours(1), std::chrono::minutes(5),
+    []{ std::cout << "ring ring"; },
+    []{ runMyScript(); });
+```
+
+Alternatively an absolute notification time can be provided. `Controller`
+exposes `scheduleTask` so CLI or agent code can enqueue tasks with different
+callbacks or lead times.
