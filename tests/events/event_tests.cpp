@@ -6,6 +6,7 @@
 #include "../../model/recurrence/DailyRecurrence.h"
 #include "../../model/recurrence/WeeklyRecurrence.h"
 #include "../../utils/WeekDay.h"
+#include "../../scheduler/ScheduledTask.h"
 #include "../test_utils.h"
 #include <memory>
 
@@ -39,10 +40,22 @@ static void testRecurringEventDelegation()
     assert(nxt.size() == 1 && nxt[0] == makeTime(2030,1,1,8));
 }
 
+static void testScheduledTaskCustomTimes()
+{
+    auto exec = makeTime(2025,6,1,10);
+    auto notify = exec - minutes(5);
+    ScheduledTask t("X","d","t", exec, hours(1), notify,
+                    [](){}, [](){});
+    assert(t.getNotifyTime() == notify);
+    ScheduledTask t2("Y","d","t", exec, hours(1), minutes(15), [](){}, [](){});
+    assert(t2.getNotifyTime() == exec - minutes(15));
+}
+
 int main()
 {
     testOneTimeEvent();
     testRecurringEventDelegation();
+    testScheduledTaskCustomTimes();
     cout << "Event tests passed\n";
     return 0;
 }
