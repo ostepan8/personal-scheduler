@@ -3,41 +3,50 @@
 #include <functional>
 #include <chrono>
 #include <memory>
+#include <vector>
+#include <algorithm>
 
 class ScheduledTask : public Event {
     std::function<void()> notifyCb_;
     std::function<void()> actionCb_;
-    std::chrono::system_clock::time_point notifyTime_;
-    bool notified_ = false;
+    std::vector<std::chrono::system_clock::time_point> notifyTimes_;
+    size_t nextNotifyIdx_ = 0;
 
 public:
-    // Specify an absolute notification time
+    // Specify absolute notification times
     ScheduledTask(const std::string &id,
                   const std::string &desc,
                   const std::string &title,
                   std::chrono::system_clock::time_point time,
                   std::chrono::system_clock::duration dur,
-                  std::chrono::system_clock::time_point notifyTime,
+                  std::vector<std::chrono::system_clock::time_point> notifyTimes,
                   std::function<void()> notifyCb,
                   std::function<void()> actionCb)
         : Event(id, desc, title, time, dur),
           notifyCb_(std::move(notifyCb)),
           actionCb_(std::move(actionCb)),
-          notifyTime_(notifyTime) {}
+          notifyTimes_(std::move(notifyTimes))
+    {
+        std::sort(notifyTimes_.begin(), notifyTimes_.end());
+    }
 
-    // Convenience constructor: notify a duration before execution
+    // Convenience constructor: notify durations before execution
     ScheduledTask(const std::string &id,
                   const std::string &desc,
                   const std::string &title,
                   std::chrono::system_clock::time_point time,
                   std::chrono::system_clock::duration dur,
-                  std::chrono::system_clock::duration notifyBefore,
+                  const std::vector<std::chrono::system_clock::duration> &notifyBefore,
                   std::function<void()> notifyCb,
                   std::function<void()> actionCb)
         : ScheduledTask(id, desc, title, time, dur,
-                        time - notifyBefore,
-                        std::move(notifyCb),
-                        std::move(actionCb)) {}
+                        std::vector<std::chrono::system_clock::time_point>{},
+                        std::move(notifyCb), std::move(actionCb))
+    {
+        for (auto d : notifyBefore)
+            notifyTimes_.push_back(time - d);
+        std::sort(notifyTimes_.begin(), notifyTimes_.end());
+    }
 
     std::unique_ptr<Event> clone() const override { return std::make_unique<ScheduledTask>(*this); }
 
@@ -45,7 +54,14 @@ public:
 
     void execute() override { if (actionCb_) actionCb_(); }
 
-    std::chrono::system_clock::time_point getNotifyTime() const { return notifyTime_; }
-    bool notified() const { return notified_; }
-    void setNotified(bool v) { notified_ = v; }
+    std::chrono::system_clock::time_point getNextNotifyTime() const {
+        if (nextNotifyIdx_ >= notifyTimes_.size())
+            return std::chrono::system_clock::time_point::max();
+        return notifyTimes_[nextNotifyIdx_];
+    }
+
+    bool hasPendingNotifications() const { return nextNotifyIdx_ < notifyTimes_.size(); }
+
+    void markNotificationSent() { if (nextNotifyIdx_ < notifyTimes_.size()) ++nextNotifyIdx_; }
+
 };

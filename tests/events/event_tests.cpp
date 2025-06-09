@@ -44,11 +44,16 @@ static void testScheduledTaskCustomTimes()
 {
     auto exec = makeTime(2025,6,1,10);
     auto notify = exec - minutes(5);
-    ScheduledTask t("X","d","t", exec, hours(1), notify,
+    ScheduledTask t("X","d","t", exec, hours(1), std::vector<std::chrono::system_clock::time_point>{notify},
                     [](){}, [](){});
-    assert(t.getNotifyTime() == notify);
-    ScheduledTask t2("Y","d","t", exec, hours(1), minutes(15), [](){}, [](){});
-    assert(t2.getNotifyTime() == exec - minutes(15));
+    assert(t.getNextNotifyTime() == notify);
+    ScheduledTask t2("Y","d","t", exec, hours(1), std::vector<std::chrono::system_clock::duration>{minutes(15)}, [](){}, [](){});
+    assert(t2.getNextNotifyTime() == exec - minutes(15));
+
+    ScheduledTask tmulti("Z","d","t", exec, hours(1), std::vector<std::chrono::system_clock::duration>{hours(1), minutes(30)}, [](){}, [](){});
+    assert(tmulti.getNextNotifyTime() == exec - hours(1));
+    tmulti.markNotificationSent();
+    assert(tmulti.getNextNotifyTime() == exec - minutes(30));
 }
 
 int main()
