@@ -8,10 +8,11 @@
 #include <memory>
 #include <iostream>
 
-int main() {
+int main()
+{
     SQLiteScheduleDatabase db("events.db");
     Model model(&db);
-    auto gcal = std::make_shared<GoogleCalendarApi>("service_account.json");
+    auto gcal = std::make_shared<GoogleCalendarApi>("calendar_integration/credentials.json");
     model.addCalendarApi(gcal);
     EventLoop loop(model);
     loop.start();
@@ -21,7 +22,8 @@ int main() {
     auto events = model.getEvents(-1, farFuture);
     TextualView view(model);
     Controller controller(model, view, &loop);
-    for (const auto &ev : events) {
+    for (const auto &ev : events)
+    {
         controller.scheduleTask(ev);
     }
 

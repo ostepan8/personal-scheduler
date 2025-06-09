@@ -4,16 +4,33 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from .calendar_service import CalendarService, Event
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
+from googleapiclient.discovery import build
+import os
 
 SCOPES = ["https://www.googleapis.com/auth/calendar"]
+
 
 class GoogleCalendarService(CalendarService):
     """Google Calendar implementation of CalendarService."""
 
-    def __init__(self, credentials_file: str, calendar_id: str = "primary"):
-        creds = service_account.Credentials.from_service_account_file(
-            credentials_file, scopes=SCOPES
-        )
+    def __init__(
+        self,
+        credentials_file: str = "calendar_integration/credentials.json",
+        calendar_id: str = "primary",
+    ):
+        creds = None
+        if os.path.exists("calendar_integration/token.json"):
+            creds = Credentials.from_authorized_user_file(
+                "calendar_integration/token.json", SCOPES
+            )
+        else:
+            flow = InstalledAppFlow.from_client_secrets_file(credentials_file, SCOPES)
+            creds = flow.run_local_server(port=0)
+            with open("calendar_integration/token.json", "w") as token:
+                token.write(creds.to_json())
+
         self.service = build("calendar", "v3", credentials=creds)
         self.calendar_id = calendar_id
 
@@ -26,7 +43,6 @@ class GoogleCalendarService(CalendarService):
         }
         if event.id:
             body["id"] = event.id
-
         created = (
             self.service.events()
             .insert(calendarId=self.calendar_id, body=body)
