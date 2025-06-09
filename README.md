@@ -47,3 +47,11 @@ ScheduledTask task(
 Alternatively an absolute notification time can be provided. `Controller`
 exposes `scheduleTask` so CLI or agent code can enqueue tasks with different
 callbacks or lead times.
+
+## Action Registry
+
+The CLI includes a simple factory for binding named actions to scheduled
+events. Actions are registered via `ActionRegistry::registerAction` and can be
+referenced when creating tasks with the `addtask` command. `BuiltinActions`
+provides a collection of static helpers and a `registerAll()` method that
+registers default actions like `hello` and `fetch_example`.
