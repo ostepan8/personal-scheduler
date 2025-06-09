@@ -248,6 +248,42 @@ static void testEventsTimeZones()
     tzset();
 }
 
+static void testEventsChicagoTimeZone()
+{
+    const char *prevPtr = getenv("TZ");
+    std::string prev = prevPtr ? std::string(prevPtr) : std::string();
+    bool hadPrev = prevPtr != nullptr;
+
+    setenv("TZ", "America/Chicago", 1);
+    tzset();
+
+    Model m({});
+    using TimeUtils::parseTimePoint;
+    using TimeUtils::parseDate;
+
+    auto evTime = parseTimePoint("2025-06-01 00:30");
+    OneTimeEvent e("1","d","t", evTime, hours(1));
+    m.addEvent(e);
+
+    auto queryDay = parseDate("2025-06-01");
+    auto d = m.getEventsOnDay(queryDay);
+    assert(d.size() == 1);
+    auto w = m.getEventsInWeek(queryDay);
+    assert(w.size() == 1);
+    auto mo = m.getEventsInMonth(queryDay);
+    assert(mo.size() == 1);
+
+    auto prevDay = parseDate("2025-05-31");
+    auto prevList = m.getEventsOnDay(prevDay);
+    assert(prevList.empty());
+
+    if (hadPrev)
+        setenv("TZ", prev.c_str(), 1);
+    else
+        unsetenv("TZ");
+    tzset();
+}
+
 int main()
 {
     testModelAddAndRetrieve();
@@ -264,6 +300,7 @@ int main()
     testEventsInWeek();
     testEventsInMonth();
     testEventsTimeZones();
+    testEventsChicagoTimeZone();
     cout << "Model tests passed\n";
     return 0;
 }
