@@ -14,12 +14,14 @@
 #include <functional>
 #include "../utils/TimeUtils.h"
 #include <stdexcept>
+#include "../scheduler/ScheduledTask.h"
+#include <memory>
 
 using namespace std;
 using namespace std::chrono;
 
-Controller::Controller(Model &model, View &view)
-    : model_(model), view_(view)
+Controller::Controller(Model &model, View &view, EventLoop *loop)
+    : model_(model), view_(view), loop_(loop)
 {
 }
 
@@ -73,6 +75,7 @@ string Controller::addRecurringEvent(const string &title,
     string titleCopy = title;
     RecurringEvent e(idCopy, descCopy, titleCopy, start, dur, std::move(pattern));
     model_.addEvent(e);
+    scheduleTask(e);
     return idCopy;
 }
 
@@ -97,6 +100,7 @@ void Controller::run()
         auto tp = now + hours(hrs);
         OneTimeEvent e{id, desc, title, tp, hours(1)};
         model_.addEvent(e);
+        scheduleTask(e);
         cout << "Added event [" << id << "]\n";
     };
 
@@ -113,6 +117,7 @@ void Controller::run()
         catch(const exception &e) { cout << e.what() << "\n"; return; }
         OneTimeEvent e{id, desc, title, tp, hours(1)};
         model_.addEvent(e);
+        scheduleTask(e);
         cout << "Added event [" << id << "]\n";
     };
 
@@ -214,4 +219,20 @@ void Controller::run()
     }
 
     cout << "Exiting scheduler.\n";
+}
+
+void Controller::scheduleTask(const Event &e)
+{
+    if (!loop_) return;
+    auto notifyBefore = std::chrono::minutes(10);
+    auto task = std::make_shared<ScheduledTask>(
+        e.getId(), e.getDescription(), e.getTitle(), e.getTime(), e.getDuration(),
+        notifyBefore,
+        [id = e.getId(), title = e.getTitle()]() {
+            std::cout << "[" << id << "] \"" << title << "\" notification\n";
+        },
+        [id = e.getId(), title = e.getTitle()]() {
+            std::cout << "[" << id << "] \"" << title << "\" executing\n";
+        });
+    loop_->addTask(task);
 }
