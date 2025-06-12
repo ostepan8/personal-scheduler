@@ -16,6 +16,10 @@ SRCS = main.cpp \
        model/recurrence/YearlyRecurrence.cpp \
        view/TextualView.cpp \
        api/ApiServer.cpp \
+       api/routes/EventRoutes.cpp \
+       api/routes/AvailabilityRoutes.cpp \
+       api/routes/StatsRoutes.cpp \
+       api/routes/RecurringRoutes.cpp \
        database/SQLiteScheduleDatabase.cpp \
        scheduler/EventLoop.cpp \
        calendar/GoogleCalendarApi.cpp
@@ -27,7 +31,7 @@ OBJS = $(SRCS:.cpp=.o)
 API_TARGET = api_server
 
 # Source files for the MVC command-line application
-MVC_SRCS = $(filter-out main.cpp api/ApiServer.cpp,$(SRCS)) main_mvc.cpp
+MVC_SRCS = $(filter-out main.cpp api/ApiServer.cpp api/routes/EventRoutes.cpp api/routes/AvailabilityRoutes.cpp api/routes/StatsRoutes.cpp api/routes/RecurringRoutes.cpp,$(SRCS)) main_mvc.cpp
 MVC_OBJS = $(MVC_SRCS:.cpp=.o)
 
 # Main build rule: link all object files into the API executable
@@ -134,6 +138,10 @@ VIEW_TEST_TARGET = view_tests
 # API server tests
 API_TEST_SRCS = tests/api/api_tests.cpp \
                 api/ApiServer.cpp \
+                api/routes/EventRoutes.cpp \
+                api/routes/AvailabilityRoutes.cpp \
+                api/routes/StatsRoutes.cpp \
+                api/routes/RecurringRoutes.cpp \
                 model/Model.cpp \
                 model/OneTimeEvent.cpp \
                 model/RecurringEvent.cpp \
@@ -179,6 +187,10 @@ INTEGRATION_TEST_SRCS = tests/integration/integration_tests.cpp \
                        controller/Controller.cpp \
                        view/TextualView.cpp \
                        api/ApiServer.cpp \
+                       api/routes/EventRoutes.cpp \
+                       api/routes/AvailabilityRoutes.cpp \
+                       api/routes/StatsRoutes.cpp \
+                       api/routes/RecurringRoutes.cpp \
                        model/Model.cpp \
                        model/OneTimeEvent.cpp \
                        model/RecurringEvent.cpp \
