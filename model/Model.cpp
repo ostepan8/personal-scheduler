@@ -30,9 +30,6 @@ std::string Model::generateUniqueId() const
     return id;
 }
 
-// Constructor: optionally load events from a database. If preloadDaysAhead >= 0
-// only events up to that many days in the future are loaded to reduce memory
-// usage.
 Model::Model(IScheduleDatabase *db, int preloadDaysAhead)
     : db_(db)
 {
@@ -60,7 +57,6 @@ void Model::addCalendarApi(std::shared_ptr<CalendarApi> api)
     apis_.push_back(std::move(api));
 }
 
-// ReadOnlyModel override: return up to maxOccurrences events occurring before endDate.
 std::vector<Event>
 Model::getEvents(int maxOccurrences,
                  std::chrono::system_clock::time_point endDate) const
@@ -85,8 +81,6 @@ Model::getEvents(int maxOccurrences,
     return result;
 }
 
-// Helper: return the next n upcoming occurrences across all events starting
-// after the current time.
 std::vector<Event> Model::getNextNEvents(int n) const
 {
     std::vector<Event> occurrences;
@@ -135,7 +129,6 @@ std::vector<Event> Model::getNextNEvents(int n) const
     return occurrences;
 }
 
-// ReadOnlyModel override: return the very next (earliest) event after now.
 Event Model::getNextEvent() const
 {
     auto list = getNextNEvents(1);
@@ -144,7 +137,7 @@ Event Model::getNextEvent() const
     return list.front();
 }
 
-// ===== Mutation methods =====
+// ===== Mutation methods with proper API integration =====
 
 bool Model::addEvent(const Event &e)
 {
@@ -170,15 +163,23 @@ bool Model::addEvent(const Event &e)
         }
         apisCopy = apis_;
     }
+
+    // Notify all calendar APIs
     for (auto &api : apisCopy)
-        api->addEvent(e);
+    {
+        try
+        {
+            api->addEvent(e);
+        }
+        catch (const std::exception &ex)
+        {
+            // Log error but don't fail the entire operation
+            // You might want to add proper logging here
+        }
+    }
     return true;
 }
 
-bool Model::removeEvent(const Event &e)
-{
-    return removeEvent(e.getId());
-}
 void Model::removeAllEvents()
 {
     std::vector<std::unique_ptr<Event>> removed;
@@ -196,12 +197,24 @@ void Model::removeAllEvents()
         }
         apisCopy = apis_;
     }
+
+    // Notify all calendar APIs
     for (const auto &e : removed)
+    {
         for (auto &api : apisCopy)
-            api->deleteEvent(*e);
+        {
+            try
+            {
+                api->deleteEvent(*e);
+            }
+            catch (const std::exception &ex)
+            {
+                // Log error but continue with other events
+            }
+        }
+    }
 }
 
-// Return the start of the day in the user's local time zone
 static std::chrono::system_clock::time_point startOfLocalDay(std::chrono::system_clock::time_point tp)
 {
     time_t t = std::chrono::system_clock::to_time_t(tp);
@@ -338,9 +351,22 @@ int Model::removeEventsOnDay(std::chrono::system_clock::time_point day)
         }
         apisCopy = apis_;
     }
+
+    // Notify all calendar APIs
     for (const auto &e : removedEvents)
+    {
         for (auto &api : apisCopy)
-            api->deleteEvent(*e);
+        {
+            try
+            {
+                api->deleteEvent(*e);
+            }
+            catch (const std::exception &ex)
+            {
+                // Log error but continue
+            }
+        }
+    }
     return static_cast<int>(removedIds.size());
 }
 
@@ -383,9 +409,22 @@ int Model::removeEventsInWeek(std::chrono::system_clock::time_point day)
         }
         apisCopy = apis_;
     }
+
+    // Notify all calendar APIs
     for (const auto &e : removedEvents)
+    {
         for (auto &api : apisCopy)
-            api->deleteEvent(*e);
+        {
+            try
+            {
+                api->deleteEvent(*e);
+            }
+            catch (const std::exception &ex)
+            {
+                // Log error but continue
+            }
+        }
+    }
     return static_cast<int>(removedIds.size());
 }
 
@@ -416,15 +455,27 @@ int Model::removeEventsBefore(std::chrono::system_clock::time_point time)
         }
         apisCopy = apis_;
     }
+
+    // Notify all calendar APIs
     for (const auto &e : removedEvents)
+    {
         for (auto &api : apisCopy)
-            api->deleteEvent(*e);
+        {
+            try
+            {
+                api->deleteEvent(*e);
+            }
+            catch (const std::exception &ex)
+            {
+                // Log error but continue
+            }
+        }
+    }
     return static_cast<int>(removedIds.size());
 }
 
-// ====== NEW IMPLEMENTATIONS ======
+// ====== SEARCH AND QUERY METHODS ======
 
-// Search events by title or description
 std::vector<Event> Model::searchEvents(const std::string &query, int maxResults) const
 {
     std::vector<Event> results;
@@ -432,8 +483,9 @@ std::vector<Event> Model::searchEvents(const std::string &query, int maxResults)
     std::transform(lowerQuery.begin(), lowerQuery.end(), lowerQuery.begin(), ::tolower);
 
     std::lock_guard<std::mutex> lock(mutex_);
-    for (const auto &[time, event] : events)
+    for (auto it = events.begin(); it != events.end(); ++it)
     {
+        const auto &event = it->second;
         std::string title = event->getTitle();
         std::string desc = event->getDescription();
         std::transform(title.begin(), title.end(), title.begin(), ::tolower);
@@ -452,12 +504,10 @@ std::vector<Event> Model::searchEvents(const std::string &query, int maxResults)
     return results;
 }
 
-// Get events within a date range
 std::vector<Event> Model::getEventsInRange(
     std::chrono::system_clock::time_point start,
     std::chrono::system_clock::time_point end) const
 {
-
     std::vector<Event> results;
     std::lock_guard<std::mutex> lock(mutex_);
 
@@ -471,14 +521,14 @@ std::vector<Event> Model::getEventsInRange(
     return results;
 }
 
-// Get events by duration range
 std::vector<Event> Model::getEventsByDuration(int minMinutes, int maxMinutes) const
 {
     std::vector<Event> results;
     std::lock_guard<std::mutex> lock(mutex_);
 
-    for (const auto &[time, event] : events)
+    for (auto it = events.begin(); it != events.end(); ++it)
     {
+        const auto &event = it->second;
         auto durationMin = std::chrono::duration_cast<std::chrono::minutes>(event->getDuration()).count();
         if (durationMin >= minMinutes && durationMin <= maxMinutes)
         {
@@ -488,14 +538,14 @@ std::vector<Event> Model::getEventsByDuration(int minMinutes, int maxMinutes) co
     return results;
 }
 
-// Get events by category
 std::vector<Event> Model::getEventsByCategory(const std::string &category) const
 {
     std::vector<Event> results;
     std::lock_guard<std::mutex> lock(mutex_);
 
-    for (const auto &[time, event] : events)
+    for (auto it = events.begin(); it != events.end(); ++it)
     {
+        const auto &event = it->second;
         if (event->getCategory() == category)
         {
             results.push_back(*event);
@@ -504,25 +554,24 @@ std::vector<Event> Model::getEventsByCategory(const std::string &category) const
     return results;
 }
 
-// Get all categories
 std::set<std::string> Model::getCategories() const
 {
     std::lock_guard<std::mutex> lock(mutex_);
     return categories_;
 }
 
-// Check for conflicts
 std::vector<Event> Model::getConflicts(
     std::chrono::system_clock::time_point time,
     std::chrono::minutes duration) const
 {
-
     std::vector<Event> conflicts;
     auto eventEnd = time + duration;
 
     std::lock_guard<std::mutex> lock(mutex_);
-    for (const auto &[existingTime, event] : events)
+    for (auto it = events.begin(); it != events.end(); ++it)
     {
+        const auto &existingTime = it->first;
+        const auto &event = it->second;
         auto existingEnd = existingTime + event->getDuration();
 
         // Check if times overlap
@@ -534,14 +583,12 @@ std::vector<Event> Model::getConflicts(
     return conflicts;
 }
 
-// Find free time slots
 std::vector<TimeSlot> Model::findFreeSlots(
     std::chrono::system_clock::time_point date,
     int startHour,
     int endHour,
     int minDurationMinutes) const
 {
-
     std::vector<TimeSlot> freeSlots;
 
     // Get start and end of working hours
@@ -601,14 +648,12 @@ std::vector<TimeSlot> Model::findFreeSlots(
     return freeSlots;
 }
 
-// Get next available slot
 TimeSlot Model::findNextAvailableSlot(
     std::chrono::minutes duration,
     std::chrono::system_clock::time_point after,
     int startHour,
     int endHour) const
 {
-
     auto currentDate = after;
     const int maxDaysToSearch = 30; // Don't search forever
 
@@ -639,12 +684,10 @@ TimeSlot Model::findNextAvailableSlot(
     return result;
 }
 
-// Get event statistics
 EventStats Model::getEventStats(
     std::chrono::system_clock::time_point start,
     std::chrono::system_clock::time_point end) const
 {
-
     EventStats stats;
     stats.totalEvents = 0;
     stats.totalMinutes = 0;
@@ -695,9 +738,9 @@ EventStats Model::getEventStats(
     }
 
     // Find busiest hours
-    for (const auto &[hour, count] : eventsByHour)
+    for (auto it = eventsByHour.begin(); it != eventsByHour.end(); ++it)
     {
-        stats.busiestHours.push_back({hour, count});
+        stats.busiestHours.push_back({it->first, it->second});
     }
     std::sort(stats.busiestHours.begin(), stats.busiestHours.end(),
               [](const auto &a, const auto &b)
@@ -706,15 +749,16 @@ EventStats Model::getEventStats(
     return stats;
 }
 
-// Update an event
+// ====== UPDATE AND MODIFICATION METHODS WITH PROPER API INTEGRATION ======
+
 bool Model::updateEvent(const std::string &id, const Event &updatedEvent)
 {
+    std::unique_ptr<Event> oldEvent;
     std::vector<std::shared_ptr<CalendarApi>> apisCopy;
     {
         std::lock_guard<std::mutex> lock(mutex_);
 
         // Find and remove the old event
-        std::unique_ptr<Event> oldEvent;
         for (auto it = events.begin(); it != events.end(); ++it)
         {
             if (it->second->getId() == id)
@@ -743,8 +787,6 @@ bool Model::updateEvent(const std::string &id, const Event &updatedEvent)
 
         if (db_)
         {
-            // Note: You may need to implement updateEvent in IScheduleDatabase
-            // For now, we'll remove and re-add
             db_->removeEvent(id);
             db_->addEvent(updatedEvent);
         }
@@ -752,13 +794,17 @@ bool Model::updateEvent(const std::string &id, const Event &updatedEvent)
         apisCopy = apis_;
     }
 
-    // Notify APIs
+    // Notify APIs using delete + add approach
     for (auto &api : apisCopy)
     {
-        // Note: You may need to implement updateEvent in CalendarApi
-        // For now, we'll delete and re-add
-        api->deleteEvent(updatedEvent);
-        api->addEvent(updatedEvent);
+        try
+        {
+            api->updateEvent(*oldEvent, updatedEvent);
+        }
+        catch (const std::exception &ex)
+        {
+            // Log error but don't fail the entire operation
+        }
     }
 
     return true;
@@ -767,42 +813,75 @@ bool Model::updateEvent(const std::string &id, const Event &updatedEvent)
 bool Model::updateEventFields(const std::string &id,
                               const std::unordered_map<std::string, std::string> &fields)
 {
-    std::lock_guard<std::mutex> lock(mutex_);
-
-    for (auto &[time, event] : events)
+    std::unique_ptr<Event> oldEventCopy;
+    std::vector<std::shared_ptr<CalendarApi>> apisCopy;
+    Event *eventToUpdate = nullptr;
     {
-        if (event->getId() == id)
-        {
-            // Update each field if present
-            if (fields.count("title"))
-            {
-                event->setTitle(fields.at("title"));
-            }
-            if (fields.count("description"))
-            {
-                event->setDescription(fields.at("description"));
-            }
-            if (fields.count("category"))
-            {
-                event->setCategory(fields.at("category"));
-                categories_.insert(fields.at("category"));
-            }
-            // Note: time and duration updates would require re-sorting in multimap
-            // so those should use updateEvent() instead
+        std::lock_guard<std::mutex> lock(mutex_);
 
-            return true;
+        for (auto it = events.begin(); it != events.end(); ++it)
+        {
+            const auto &event = it->second;
+            if (event->getId() == id)
+            {
+                // Make a copy of the old event for API notification
+                oldEventCopy = event->clone();
+                eventToUpdate = event.get();
+
+                // Update each field if present
+                if (fields.count("title"))
+                {
+                    event->setTitle(fields.at("title"));
+                }
+                if (fields.count("description"))
+                {
+                    event->setDescription(fields.at("description"));
+                }
+                if (fields.count("category"))
+                {
+                    event->setCategory(fields.at("category"));
+                    categories_.insert(fields.at("category"));
+                }
+
+                // Update database
+                if (db_)
+                {
+                    db_->removeEvent(id);
+                    db_->addEvent(*event);
+                }
+
+                apisCopy = apis_;
+                break;
+            }
         }
+    }
+
+    // Notify APIs
+    if (eventToUpdate && oldEventCopy)
+    {
+        for (auto &api : apisCopy)
+        {
+            try
+            {
+                api->updateEvent(*oldEventCopy, *eventToUpdate);
+            }
+            catch (const std::exception &ex)
+            {
+                // Log error but continue
+            }
+        }
+        return true;
     }
     return false;
 }
 
-// Get event by ID
 std::unique_ptr<Event> Model::getEventById(const std::string &id) const
 {
     std::lock_guard<std::mutex> lock(mutex_);
 
-    for (const auto &[time, event] : events)
+    for (auto it = events.begin(); it != events.end(); ++it)
     {
+        const auto &event = it->second;
         if (event->getId() == id)
         {
             return event->clone();
@@ -811,7 +890,6 @@ std::unique_ptr<Event> Model::getEventById(const std::string &id) const
     return nullptr;
 }
 
-// Validate event time (no conflicts)
 bool Model::validateEventTime(const Event &e) const
 {
     auto conflicts = getConflicts(e.getTime(),
@@ -819,7 +897,6 @@ bool Model::validateEventTime(const Event &e) const
     return conflicts.empty();
 }
 
-// Add multiple events
 std::vector<bool> Model::addEvents(const std::vector<Event> &newEvents)
 {
     std::vector<bool> results;
@@ -833,13 +910,12 @@ std::vector<bool> Model::addEvents(const std::vector<Event> &newEvents)
     return results;
 }
 
-// Remove multiple events
 int Model::removeEvents(const std::vector<std::string> &ids)
 {
     int removed = 0;
     for (const auto &id : ids)
     {
-        if (removeEvent(id))
+        if (removeEvent(id, false)) // Use hard delete
         {
             removed++;
         }
@@ -847,29 +923,31 @@ int Model::removeEvents(const std::vector<std::string> &ids)
     return removed;
 }
 
-// Update multiple events
 std::vector<bool> Model::updateEvents(
     const std::vector<std::pair<std::string, Event>> &updates)
 {
     std::vector<bool> results;
     results.reserve(updates.size());
 
-    for (const auto &[id, event] : updates)
+    for (auto it = updates.begin(); it != updates.end(); ++it)
     {
+        const auto &id = it->first;
+        const auto &event = it->second;
         results.push_back(updateEvent(id, event));
     }
 
     return results;
 }
 
-// Soft delete support
+// ====== SOFT DELETE FUNCTIONALITY WITH API INTEGRATION ======
+
 bool Model::removeEvent(const std::string &id, bool softDelete)
 {
     if (softDelete)
     {
         std::lock_guard<std::mutex> lock(mutex_);
 
-        // Find and move to deleted events
+        // Find and move to deleted events (no API notification for soft delete)
         for (auto it = events.begin(); it != events.end(); ++it)
         {
             if (it->second->getId() == id)
@@ -883,39 +961,109 @@ bool Model::removeEvent(const std::string &id, bool softDelete)
     }
     else
     {
-        // Regular hard delete
-        return removeEvent(id);
+        // Regular hard delete with API notification
+        std::unique_ptr<Event> removedEvent;
+        std::vector<std::shared_ptr<CalendarApi>> apisCopy;
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            for (auto it = events.begin(); it != events.end(); ++it)
+            {
+                if (it->second->getId() == id)
+                {
+                    removedEvent = it->second->clone();
+                    events.erase(it);
+                    if (db_)
+                    {
+                        db_->removeEvent(id);
+                    }
+                    apisCopy = apis_;
+                    break;
+                }
+            }
+        }
+
+        if (removedEvent)
+        {
+            // Notify all calendar APIs
+            for (auto &api : apisCopy)
+            {
+                try
+                {
+                    api->deleteEvent(*removedEvent);
+                }
+                catch (const std::exception &ex)
+                {
+                    // Log error but continue
+                }
+            }
+            return true;
+        }
+        return false;
     }
 }
 
-// Get deleted events
+bool Model::removeEvent(const Event &event)
+{
+    return removeEvent(event.getId(), false); // Call the version with softDelete = false
+}
+
 std::vector<Event> Model::getDeletedEvents() const
 {
     std::vector<Event> results;
     std::lock_guard<std::mutex> lock(mutex_);
 
-    for (const auto &[time, event] : deletedEvents)
+    for (auto it = deletedEvents.begin(); it != deletedEvents.end(); ++it)
     {
+        const auto &event = it->second;
         results.push_back(*event);
     }
     return results;
 }
 
-// Restore deleted event
 bool Model::restoreEvent(const std::string &id)
 {
-    std::lock_guard<std::mutex> lock(mutex_);
-
-    // Find in deleted events
-    for (auto it = deletedEvents.begin(); it != deletedEvents.end(); ++it)
+    std::unique_ptr<Event> restoredEvent;
+    std::vector<std::shared_ptr<CalendarApi>> apisCopy;
     {
-        if (it->second->getId() == id)
+        std::lock_guard<std::mutex> lock(mutex_);
+
+        // Find in deleted events
+        for (auto it = deletedEvents.begin(); it != deletedEvents.end(); ++it)
         {
-            // Move back to active events
-            events.emplace(it->first, std::move(it->second));
-            deletedEvents.erase(it);
-            return true;
+            if (it->second->getId() == id)
+            {
+                restoredEvent = it->second->clone();
+                // Move back to active events
+                events.emplace(it->first, std::move(it->second));
+                deletedEvents.erase(it);
+
+                // Update database
+                if (db_)
+                {
+                    db_->addEvent(*restoredEvent);
+                }
+
+                apisCopy = apis_;
+                break;
+            }
         }
+    }
+
+    if (restoredEvent)
+    {
+        // Notify all calendar APIs about the restored event
+        for (auto &api : apisCopy)
+        {
+            try
+            {
+                api->addEvent(*restoredEvent);
+            }
+            catch (const std::exception &ex)
+            {
+                // Log error but don't fail the entire operation
+            }
+        }
+        return true;
     }
     return false;
 }

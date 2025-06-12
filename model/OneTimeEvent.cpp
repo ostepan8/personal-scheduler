@@ -20,10 +20,9 @@ std::unique_ptr<Event> OneTimeEvent::clone() const
         getDescription(),
         getTitle(),
         getTime(),
-        getDuration(),
+        std::chrono::duration_cast<std::chrono::seconds>(getDuration()),
         getCategory());
 }
-
 // Notify implementation (optional - can be customized)
 void OneTimeEvent::notify()
 {
