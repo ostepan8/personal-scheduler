@@ -2,7 +2,7 @@
 #pragma once
 
 #include "Event.h"
-#include "RecurrencePattern.h"
+#include "recurrence/RecurrencePattern.h"
 #include <memory>
 #include <vector>
 #include <chrono>
