@@ -8,6 +8,41 @@
 #include <memory>
 #include <cctype>
 #include <regex>
+#include <vector>
+#include <string>
+
+// Helper utilities for fuzzy searching
+namespace {
+std::string toLowerCopy(std::string s) {
+    std::transform(s.begin(), s.end(), s.begin(), ::tolower);
+    return s;
+}
+
+int levenshteinDistance(const std::string &s1, const std::string &s2) {
+    const size_t len1 = s1.size(), len2 = s2.size();
+    std::vector<int> col(len2 + 1), prevCol(len2 + 1);
+
+    for (size_t i = 0; i <= len2; ++i)
+        prevCol[i] = static_cast<int>(i);
+
+    for (size_t i = 0; i < len1; ++i) {
+        col[0] = static_cast<int>(i + 1);
+        for (size_t j = 0; j < len2; ++j)
+            col[j + 1] = std::min({ prevCol[j + 1] + 1,
+                                    col[j] + 1,
+                                    prevCol[j] + (s1[i] == s2[j] ? 0 : 1) });
+        prevCol.swap(col);
+    }
+    return prevCol[len2];
+}
+
+double similarityRatio(const std::string &a, const std::string &b) {
+    int dist = levenshteinDistance(a, b);
+    int maxLen = static_cast<int>(std::max(a.size(), b.size()));
+    if (maxLen == 0) return 1.0;
+    return 1.0 - static_cast<double>(dist) / static_cast<double>(maxLen);
+}
+} // namespace
 
 bool Model::eventExists(const std::string &id) const
 {
@@ -479,20 +514,37 @@ int Model::removeEventsBefore(std::chrono::system_clock::time_point time)
 std::vector<Event> Model::searchEvents(const std::string &query, int maxResults) const
 {
     std::vector<Event> results;
-    std::string lowerQuery = query;
-    std::transform(lowerQuery.begin(), lowerQuery.end(), lowerQuery.begin(), ::tolower);
+    std::string lowerQuery = toLowerCopy(query);
+
+    // Split the query into tokens for partial matching
+    std::istringstream iss(lowerQuery);
+    std::vector<std::string> tokens;
+    std::string tok;
+    while (iss >> tok)
+        tokens.push_back(tok);
 
     std::lock_guard<std::mutex> lock(mutex_);
     for (auto it = events.begin(); it != events.end(); ++it)
     {
         const auto &event = it->second;
-        std::string title = event->getTitle();
-        std::string desc = event->getDescription();
-        std::transform(title.begin(), title.end(), title.begin(), ::tolower);
-        std::transform(desc.begin(), desc.end(), desc.begin(), ::tolower);
+        std::string combined = event->getTitle() + " " + event->getDescription();
+        std::string combinedLower = toLowerCopy(combined);
 
-        if (title.find(lowerQuery) != std::string::npos ||
-            desc.find(lowerQuery) != std::string::npos)
+        // Token based match
+        bool tokensMatch = true;
+        for (const auto &t : tokens)
+        {
+            if (combinedLower.find(t) == std::string::npos)
+            {
+                tokensMatch = false;
+                break;
+            }
+        }
+
+        double simTitle = similarityRatio(lowerQuery, toLowerCopy(event->getTitle()));
+        double simDesc = similarityRatio(lowerQuery, toLowerCopy(event->getDescription()));
+
+        if (tokensMatch || simTitle >= 0.6 || simDesc >= 0.6)
         {
             results.push_back(*event);
             if (maxResults > 0 && static_cast<int>(results.size()) >= maxResults)
