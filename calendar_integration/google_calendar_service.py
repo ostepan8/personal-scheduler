@@ -1,60 +1,54 @@
 from __future__ import annotations
+from dataclasses import asdict
+from datetime import datetime
 from typing import Optional
-from google.oauth2 import service_account
-from googleapiclient.discovery import build
-from googleapiclient.errors import HttpError
-from .calendar_service import CalendarService, Event
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
-from googleapiclient.discovery import build
-import os
 
-SCOPES = ["https://www.googleapis.com/auth/calendar"]
+from gcsa.google_calendar import GoogleCalendar
+from gcsa.event import Event as GEvent
+
+from .calendar_service import CalendarService, Event
 
 
 class GoogleCalendarService(CalendarService):
-    """Google Calendar implementation of CalendarService."""
+    """Google Calendar implementation using google-calendar-simple-api."""
 
-    def __init__(
-        self,
-        credentials_file: str = "calendar_integration/credentials.json",
-        calendar_id: str = "primary",
-    ):
-        creds = None
-        if os.path.exists("calendar_integration/token.json"):
-            creds = Credentials.from_authorized_user_file(
-                "calendar_integration/token.json", SCOPES
-            )
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file(credentials_file, SCOPES)
-            creds = flow.run_local_server(port=0)
-            with open("calendar_integration/token.json", "w") as token:
-                token.write(creds.to_json())
+    def __init__(self, credentials_file: str = "calendar_integration/credentials.json", calendar_id: str = "primary"):
+        self.calendar = GoogleCalendar(
+            default_calendar=calendar_id,
+            credentials_path=credentials_file,
+            token_path="calendar_integration/token.pickle",
+        )
 
-        self.service = build("calendar", "v3", credentials=creds)
-        self.calendar_id = calendar_id
+    def _to_gevent(self, event: Event) -> GEvent:
+        start = self._parse_datetime(event.start)
+        end = self._parse_datetime(event.end)
+        return GEvent(
+            summary=event.summary,
+            start=start,
+            end=end,
+            description=event.description or None,
+            timezone=event.timezone,
+            event_id=event.id,
+            recurrence=event.recurrence,
+        )
+
+    @staticmethod
+    def _parse_datetime(value: str) -> datetime:
+        # Support RFC3339 with trailing 'Z'
+        if value.endswith("Z"):
+            value = value.replace("Z", "+00:00")
+        return datetime.fromisoformat(value)
 
     def add_event(self, event: Event) -> str:
-        body = {
-            "summary": event.summary,
-            "description": event.description,
-            "start": {"dateTime": event.start, "timeZone": event.timezone},
-            "end": {"dateTime": event.end, "timeZone": event.timezone},
-        }
-        if event.id:
-            body["id"] = event.id
-        created = (
-            self.service.events()
-            .insert(calendarId=self.calendar_id, body=body)
-            .execute()
-        )
-        return created.get("id")
+        gevent = self._to_gevent(event)
+        created = self.calendar.add_event(gevent)
+        return created.event_id
+
+    def update_event(self, event: Event) -> str:
+        gevent = self._to_gevent(event)
+        updated = self.calendar.update_event(gevent)
+        return updated.event_id
 
     def delete_event(self, event_id: str) -> None:
-        try:
-            self.service.events().delete(
-                calendarId=self.calendar_id, eventId=event_id
-            ).execute()
-        except HttpError as exc:
-            if exc.resp.status != 410:
-                raise
+        self.calendar.delete_event(event_id)
+
