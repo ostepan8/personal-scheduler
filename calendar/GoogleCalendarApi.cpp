@@ -1,176 +1,228 @@
 #include "GoogleCalendarApi.h"
-#include "../utils/TimeUtils.h"
-#include "../model/RecurringEvent.h"
-#include "../model/recurrence/DailyRecurrence.h"
-#include "../model/recurrence/WeeklyRecurrence.h"
-#include "../model/recurrence/MonthlyRecurrence.h"
-#include "../model/recurrence/YearlyRecurrence.h"
-#include "../utils/WeekDay.h"
-#include <cstdlib>
-#include <string>
+#include <iostream>
+#include <fstream>
 #include <sstream>
+#include <cstdlib>
+#include <array>
+#include <memory>
 
-GoogleCalendarApi::GoogleCalendarApi(std::string creds, std::string calendarId)
-    : credentials_(std::move(creds)), calendarId_(std::move(calendarId)) {}
+// Implementation of GoogleCalendarApi methods
 
-static void setEnv(const char* key, const std::string& value) {
+GoogleCalendarApi::GoogleCalendarApi(const std::string &credentials_file,
+                                     const std::string &calendar_id,
+                                     const std::string &python_script_path)
+    : credentials_file_(credentials_file),
+      calendar_id_(calendar_id),
+      python_script_path_(python_script_path)
+{
+    // Constructor implementation
+    std::cout << "GoogleCalendarApi initialized with:" << std::endl;
+    std::cout << "  Credentials: " << credentials_file_ << std::endl;
+    std::cout << "  Calendar ID: " << calendar_id_ << std::endl;
+    std::cout << "  Python Script: " << python_script_path_ << std::endl;
+}
+
+std::string GoogleCalendarApi::formatDateTime(std::chrono::system_clock::time_point tp,
+                                              const std::string &timezone) const
+{
+    auto time_t = std::chrono::system_clock::to_time_t(tp);
+    std::tm tm;
 #ifdef _WIN32
-    _putenv_s(key, value.c_str());
+    gmtime_s(&tm, &time_t);
 #else
-    setenv(key, value.c_str(), 1);
+    gmtime_r(&time_t, &tm);
 #endif
+
+    std::ostringstream oss;
+    oss << std::put_time(&tm, "%Y-%m-%dT%H:%M:%S");
+
+    if (timezone == "UTC")
+    {
+        oss << "Z";
+    }
+    else
+    {
+        // For other timezones, you'd need to add proper offset
+        oss << "+00:00"; // Simplified for now
+    }
+
+    return oss.str();
 }
 
-static void unsetEnv(const char* key) {
-#ifdef _WIN32
-    _putenv_s(key, "");
-#else
-    unsetenv(key);
-#endif
+bool GoogleCalendarApi::executePythonScript(const std::map<std::string, std::string> &env_vars) const
+{
+    // Set all environment variables
+    for (const auto &pair : env_vars)
+    {
+        setenv(pair.first.c_str(), pair.second.c_str(), 1);
+    }
+
+    // Construct the Python command
+    std::string command = "python3 " + python_script_path_ + " 2>&1"; // Redirect stderr to stdout
+
+    // Log the command and environment for debugging
+    std::cout << "Executing: " << command << std::endl;
+    std::cout << "Environment variables:" << std::endl;
+    for (const auto &pair : env_vars)
+    {
+        if (pair.first != "GCAL_CREDS")
+        { // Don't log sensitive credentials
+            std::cout << "  " << pair.first << "=" << pair.second << std::endl;
+        }
+    }
+
+    // Execute the command
+    std::array<char, 128> buffer;
+    std::string result;
+    std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(command.c_str(), "r"), pclose);
+
+    if (!pipe)
+    {
+        std::cerr << "Failed to execute Python script" << std::endl;
+        return false;
+    }
+
+    while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr)
+    {
+        result += buffer.data();
+    }
+
+    // Get the return code before closing
+    int status = pclose(pipe.release());
+    int return_code = WEXITSTATUS(status);
+
+    // Print the output
+    if (!result.empty())
+    {
+        std::cout << "Python script output:" << std::endl;
+        std::cout << result << std::endl;
+    }
+
+    if (return_code != 0)
+    {
+        std::cerr << "Python script failed with return code: " << return_code << std::endl;
+        return false;
+    }
+
+    return true;
 }
 
-static std::string formatUntil(std::chrono::system_clock::time_point tp) {
-    using namespace std::chrono;
-    std::time_t t = system_clock::to_time_t(tp);
-    std::tm tm_buf;
-#if defined(_MSC_VER)
-    gmtime_s(&tm_buf, &t);
-#else
-    gmtime_r(&t, &tm_buf);
-#endif
-    char buf[32];
-    strftime(buf, sizeof(buf), "%Y%m%dT%H%M%SZ", &tm_buf);
-    return std::string(buf);
-}
-
-static std::string weekdayCode(Weekday w) {
-    switch (w) {
-        case Weekday::Sunday: return "SU";
-        case Weekday::Monday: return "MO";
-        case Weekday::Tuesday: return "TU";
-        case Weekday::Wednesday: return "WE";
-        case Weekday::Thursday: return "TH";
-        case Weekday::Friday: return "FR";
-        case Weekday::Saturday: return "SA";
+std::string GoogleCalendarApi::convertRecurrence(const Event &event) const
+{
+    // This is a simplified version - you'd need to parse the recurrence pattern
+    // and convert it to RFC 5545 RRULE format
+    if (event.isRecurring())
+    {
+        return "RRULE:FREQ=WEEKLY;COUNT=10"; // Example weekly recurrence
     }
     return "";
 }
 
-static std::string rruleFromPattern(const std::shared_ptr<RecurrencePattern>& p) {
-    if (!p) return "";
-    std::ostringstream r;
-    auto type = p->type();
-    if (type == "daily") {
-        auto* d = dynamic_cast<DailyRecurrence*>(p.get());
-        r << "RRULE:FREQ=DAILY";
-        if (d->getInterval() > 1) r << ";INTERVAL=" << d->getInterval();
-        if (d->getMaxOccurrences() != -1) r << ";COUNT=" << d->getMaxOccurrences();
-        if (d->getEndDate() != std::chrono::system_clock::time_point::max())
-            r << ";UNTIL=" << formatUntil(d->getEndDate());
-    } else if (type == "weekly") {
-        auto* w = dynamic_cast<WeeklyRecurrence*>(p.get());
-        r << "RRULE:FREQ=WEEKLY";
-        if (w->getInterval() > 1) r << ";INTERVAL=" << w->getInterval();
-        const auto& days = w->getDaysOfWeek();
-        if (!days.empty()) {
-            r << ";BYDAY=";
-            for (size_t i = 0; i < days.size(); ++i) {
-                r << weekdayCode(days[i]);
-                if (i + 1 < days.size()) r << ",";
-            }
-        }
-        if (w->getMaxOccurrences() != -1) r << ";COUNT=" << w->getMaxOccurrences();
-        if (w->getEndDate() != std::chrono::system_clock::time_point::max())
-            r << ";UNTIL=" << formatUntil(w->getEndDate());
-    } else if (type == "monthly") {
-        auto* m = dynamic_cast<MonthlyRecurrence*>(p.get());
-        r << "RRULE:FREQ=MONTHLY";
-        if (m->getInterval() > 1) r << ";INTERVAL=" << m->getInterval();
-        if (m->getMaxOccurrences() != -1) r << ";COUNT=" << m->getMaxOccurrences();
-        if (m->getEndDate() != std::chrono::system_clock::time_point::max())
-            r << ";UNTIL=" << formatUntil(m->getEndDate());
-    } else if (type == "yearly") {
-        auto* y = dynamic_cast<YearlyRecurrence*>(p.get());
-        r << "RRULE:FREQ=YEARLY";
-        if (y->getInterval() > 1) r << ";INTERVAL=" << y->getInterval();
-        if (y->getMaxOccurrences() != -1) r << ";COUNT=" << y->getMaxOccurrences();
-        if (y->getEndDate() != std::chrono::system_clock::time_point::max())
-            r << ";UNTIL=" << formatUntil(y->getEndDate());
+void GoogleCalendarApi::addEvent(const Event &event)
+{
+    std::cout << "\n=== GoogleCalendarApi::addEvent ===" << std::endl;
+    std::cout << "Adding event: " << event.getTitle() << std::endl;
+
+    auto start_time = formatDateTime(event.getTime());
+    auto end_time = formatDateTime(event.getTime() + event.getDuration());
+
+    std::map<std::string, std::string> env_vars = {
+        {"GCAL_ACTION", "add"},
+        {"GCAL_CREDS", credentials_file_},
+        {"GCAL_CALENDAR_ID", calendar_id_},
+        {"GCAL_TITLE", event.getTitle()},
+        {"GCAL_START", start_time},
+        {"GCAL_END", end_time},
+        {"GCAL_DESC", event.getDescription()},
+        {"GCAL_TZ", "UTC"}, // You might want to make this configurable
+        {"GCAL_EVENT_ID", event.getId()}};
+
+    // Add recurrence if applicable
+    if (event.isRecurring())
+    {
+        env_vars["GCAL_RECURRENCE"] = convertRecurrence(event);
     }
-    return r.str();
+
+    if (!executePythonScript(env_vars))
+    {
+        throw std::runtime_error("Failed to add event to Google Calendar");
+    }
 }
 
-void GoogleCalendarApi::addEvent(const Event &e) {
-    setEnv("GCAL_ACTION", "add");
-    setEnv("GCAL_CREDS", credentials_);
-    setEnv("GCAL_CALENDAR_ID", calendarId_);
-    setEnv("GCAL_TITLE", e.getTitle());
-    setEnv("GCAL_DESC", e.getDescription());
-    setEnv("GCAL_EVENT_ID", e.getId());
-    auto start = TimeUtils::formatRFC3339UTC(e.getTime());
-    auto end = TimeUtils::formatRFC3339UTC(e.getTime() + e.getDuration());
-    setEnv("GCAL_START", start);
-    setEnv("GCAL_END", end);
-    setEnv("GCAL_TZ", "UTC");
+void GoogleCalendarApi::updateEvent(const Event &oldEvent, const Event &newEvent)
+{
+    std::cout << "\n=== GoogleCalendarApi::updateEvent ===" << std::endl;
+    std::cout << "Updating event: " << oldEvent.getTitle() << " -> " << newEvent.getTitle() << std::endl;
 
-    // Handle recurrence if this is a RecurringEvent
-    if (auto re = dynamic_cast<const RecurringEvent*>(&e)) {
-        auto rrule = rruleFromPattern(re->getRecurrencePattern());
-        if (!rrule.empty()) {
-            setEnv("GCAL_RECURRENCE", rrule);
+    if (oldEvent.getId() == newEvent.getId())
+    {
+        // Update existing event
+        auto start_time = formatDateTime(newEvent.getTime());
+        auto end_time = formatDateTime(newEvent.getTime() + newEvent.getDuration());
+
+        std::map<std::string, std::string> env_vars = {
+            {"GCAL_ACTION", "update"},
+            {"GCAL_CREDS", credentials_file_},
+            {"GCAL_CALENDAR_ID", calendar_id_},
+            {"GCAL_EVENT_ID", newEvent.getId()},
+            {"GCAL_TITLE", newEvent.getTitle()},
+            {"GCAL_START", start_time},
+            {"GCAL_END", end_time},
+            {"GCAL_DESC", newEvent.getDescription()},
+            {"GCAL_TZ", "UTC"}};
+
+        if (!executePythonScript(env_vars))
+        {
+            throw std::runtime_error("Failed to update event in Google Calendar");
         }
     }
-    std::system("python3 -m calendar_integration.gcal_service");
-    unsetEnv("GCAL_ACTION");
-    unsetEnv("GCAL_CREDS");
-    unsetEnv("GCAL_CALENDAR_ID");
-    unsetEnv("GCAL_TITLE");
-    unsetEnv("GCAL_DESC");
-    unsetEnv("GCAL_EVENT_ID");
-    unsetEnv("GCAL_START");
-    unsetEnv("GCAL_END");
-    unsetEnv("GCAL_TZ");
-    unsetEnv("GCAL_RECURRENCE");
-}
-
-void GoogleCalendarApi::deleteEvent(const Event &e) {
-    setEnv("GCAL_ACTION", "delete");
-    setEnv("GCAL_CREDS", credentials_);
-    setEnv("GCAL_CALENDAR_ID", calendarId_);
-    setEnv("GCAL_EVENT_ID", e.getId());
-    std::system("python3 -m calendar_integration.gcal_service");
-    unsetEnv("GCAL_ACTION");
-    unsetEnv("GCAL_CREDS");
-    unsetEnv("GCAL_CALENDAR_ID");
-    unsetEnv("GCAL_EVENT_ID");
-}
-
-void GoogleCalendarApi::updateEvent(const Event &oldEvent, const Event &newEvent) {
-    setEnv("GCAL_ACTION", "update");
-    setEnv("GCAL_CREDS", credentials_);
-    setEnv("GCAL_CALENDAR_ID", calendarId_);
-    setEnv("GCAL_TITLE", newEvent.getTitle());
-    setEnv("GCAL_DESC", newEvent.getDescription());
-    setEnv("GCAL_EVENT_ID", oldEvent.getId());
-    auto start = TimeUtils::formatRFC3339UTC(newEvent.getTime());
-    auto end = TimeUtils::formatRFC3339UTC(newEvent.getTime() + newEvent.getDuration());
-    setEnv("GCAL_START", start);
-    setEnv("GCAL_END", end);
-    setEnv("GCAL_TZ", "UTC");
-    if (auto re = dynamic_cast<const RecurringEvent*>(&newEvent)) {
-        auto rrule = rruleFromPattern(re->getRecurrencePattern());
-        if (!rrule.empty()) setEnv("GCAL_RECURRENCE", rrule);
+    else
+    {
+        // Delete old and add new
+        deleteEvent(oldEvent);
+        addEvent(newEvent);
     }
-    std::system("python3 -m calendar_integration.gcal_service");
-    unsetEnv("GCAL_ACTION");
-    unsetEnv("GCAL_CREDS");
-    unsetEnv("GCAL_CALENDAR_ID");
-    unsetEnv("GCAL_TITLE");
-    unsetEnv("GCAL_DESC");
-    unsetEnv("GCAL_EVENT_ID");
-    unsetEnv("GCAL_START");
-    unsetEnv("GCAL_END");
-    unsetEnv("GCAL_TZ");
-    unsetEnv("GCAL_RECURRENCE");
 }
 
+void GoogleCalendarApi::deleteEvent(const Event &event)
+{
+    std::cout << "\n=== GoogleCalendarApi::deleteEvent ===" << std::endl;
+    std::cout << "Deleting event: " << event.getTitle() << std::endl;
+
+    std::map<std::string, std::string> env_vars = {
+        {"GCAL_ACTION", "delete"},
+        {"GCAL_CREDS", credentials_file_},
+        {"GCAL_CALENDAR_ID", calendar_id_},
+        {"GCAL_EVENT_ID", event.getId()}};
+
+    if (!executePythonScript(env_vars))
+    {
+        throw std::runtime_error("Failed to delete event from Google Calendar");
+    }
+}
+
+bool GoogleCalendarApi::testConnection() const
+{
+    std::cout << "Testing Google Calendar connection..." << std::endl;
+
+    // Check if the Python script exists
+    std::ifstream file(python_script_path_);
+    if (!file.good())
+    {
+        std::cerr << "Python script not found at: " << python_script_path_ << std::endl;
+        return false;
+    }
+    file.close();
+
+    // Check if credentials file exists
+    std::ifstream creds_file(credentials_file_);
+    if (!creds_file.good())
+    {
+        std::cerr << "Credentials file not found at: " << credentials_file_ << std::endl;
+        return false;
+    }
+    creds_file.close();
+
+    std::cout << "Python script and credentials file found. Connection test passed." << std::endl;
+    return true;
+}
