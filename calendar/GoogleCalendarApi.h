@@ -9,4 +9,5 @@ public:
     GoogleCalendarApi(std::string creds, std::string calendarId = "primary");
     void addEvent(const Event &e) override;
     void deleteEvent(const Event &e) override;
+    void updateEvent(const Event &oldEvent, const Event &newEvent) override;
 };
