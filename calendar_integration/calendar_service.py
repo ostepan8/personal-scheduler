@@ -5,12 +5,14 @@ from dataclasses import dataclass
 @dataclass
 class Event:
     """Simple container for event details."""
+
     summary: str
     start: str  # RFC3339 timestamp
-    end: str    # RFC3339 timestamp
+    end: str  # RFC3339 timestamp
     description: str = ""
     timezone: str = "UTC"
     id: str | None = None
+    recurrence: str | None = None
 
 class CalendarService(ABC):
     """Abstract calendar service interface."""

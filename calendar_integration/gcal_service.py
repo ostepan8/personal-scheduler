@@ -13,14 +13,27 @@ def main():
 
     service = GoogleCalendarService(creds, calendar_id)
 
-    if action == "add":
+    if action in {"add", "update"}:
         title = os.environ["GCAL_TITLE"]
         start = os.environ["GCAL_START"]
         end = os.environ["GCAL_END"]
         desc = os.environ.get("GCAL_DESC", "")
+        tz = os.environ.get("GCAL_TZ", "UTC")
+        recurrence = os.environ.get("GCAL_RECURRENCE")
         event_id = os.environ.get("GCAL_EVENT_ID")
-        event = Event(summary=title, start=start, end=end, description=desc, id=event_id)
-        service.add_event(event)
+        event = Event(
+            summary=title,
+            start=start,
+            end=end,
+            description=desc,
+            timezone=tz,
+            id=event_id,
+            recurrence=recurrence,
+        )
+        if action == "add":
+            service.add_event(event)
+        else:
+            service.update_event(event)
     elif action == "delete":
         event_id = os.environ["GCAL_EVENT_ID"]
         service.delete_event(event_id)
