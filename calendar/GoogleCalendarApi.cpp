@@ -5,6 +5,11 @@
 #include <cstdlib>
 #include <array>
 #include <memory>
+#include "../model/recurrence/DailyRecurrence.h"
+#include "../model/recurrence/MonthlyRecurrence.h"
+#include "../model/recurrence/WeeklyRecurrence.h"
+#include "../model/recurrence/YearlyRecurrence.h"
+#include "../model/RecurringEvent.h"
 
 // Implementation of GoogleCalendarApi methods
 
@@ -107,15 +112,106 @@ bool GoogleCalendarApi::executePythonScript(const std::map<std::string, std::str
     return true;
 }
 
+static std::string weekdayIntToStr(int d)
+{
+    static const char *names[] = {"SU", "MO", "TU", "WE", "TH", "FR", "SA"};
+    return (d >= 0 && d < 7) ? names[d] : "MO";
+}
+
+static std::string formatRFC5545UTC(std::chrono::system_clock::time_point tp)
+{
+    std::time_t t = std::chrono::system_clock::to_time_t(tp);
+    std::tm tm{};
+#ifdef _MSC_VER
+    gmtime_s(&tm, &t);
+#else
+    gmtime_r(&t, &tm);
+#endif
+    char buf[17];
+    std::strftime(buf, sizeof(buf), "%Y%m%dT%H%M%SZ", &tm);
+    return buf;
+}
+
 std::string GoogleCalendarApi::convertRecurrence(const Event &event) const
 {
-    // This is a simplified version - you'd need to parse the recurrence pattern
-    // and convert it to RFC 5545 RRULE format
-    if (event.isRecurring())
+    if (!event.isRecurring())
+        return "";
+
+    auto recEv = dynamic_cast<const RecurringEvent *>(&event);
+    if (!recEv)
+        return "";
+
+    auto pat = recEv->getRecurrencePattern();
+    std::ostringstream rrule;
+
+    std::string type = pat->type();
+    rrule << "RRULE:FREQ=" << (type == "daily" ? "DAILY" : type == "weekly" ? "WEEKLY"
+                                                       : type == "monthly"  ? "MONTHLY"
+                                                       : type == "yearly"   ? "YEARLY"
+                                                                            : "");
+
+    // interval
+    int interval = 1;
+    if (type == "daily")
+        interval = static_cast<DailyRecurrence *>(pat.get())->getInterval();
+    else if (type == "weekly")
+        interval = static_cast<WeeklyRecurrence *>(pat.get())->getInterval();
+    else if (type == "monthly")
+        interval = static_cast<MonthlyRecurrence *>(pat.get())->getInterval();
+    else if (type == "yearly")
+        interval = static_cast<YearlyRecurrence *>(pat.get())->getInterval();
+    if (interval > 1)
+        rrule << ";INTERVAL=" << interval;
+
+    // weekly BYDAY
+    if (type == "weekly")
     {
-        return "RRULE:FREQ=WEEKLY;COUNT=10"; // Example weekly recurrence
+        auto days = static_cast<WeeklyRecurrence *>(pat.get())->getDaysOfWeek();
+        if (!days.empty())
+        {
+            rrule << ";BYDAY=";
+            for (size_t i = 0; i < days.size(); ++i)
+            {
+                if (i)
+                    rrule << ",";
+                rrule << weekdayIntToStr(static_cast<int>(days[i]));
+            }
+        }
     }
-    return "";
+
+    // count or until
+    int count = -1;
+    auto endPt = std::chrono::system_clock::time_point::max();
+    if (type == "daily")
+    {
+        count = static_cast<DailyRecurrence *>(pat.get())->getMaxOccurrences();
+        endPt = static_cast<DailyRecurrence *>(pat.get())->getEndDate();
+    }
+    else if (type == "weekly")
+    {
+        count = static_cast<WeeklyRecurrence *>(pat.get())->getMaxOccurrences();
+        endPt = static_cast<WeeklyRecurrence *>(pat.get())->getEndDate();
+    }
+    else if (type == "monthly")
+    {
+        count = static_cast<MonthlyRecurrence *>(pat.get())->getMaxOccurrences();
+        endPt = static_cast<MonthlyRecurrence *>(pat.get())->getEndDate();
+    }
+    else if (type == "yearly")
+    {
+        count = static_cast<YearlyRecurrence *>(pat.get())->getMaxOccurrences();
+        endPt = static_cast<YearlyRecurrence *>(pat.get())->getEndDate();
+    }
+    if (count > 0)
+    {
+        rrule << ";COUNT=" << count;
+    }
+    else if (endPt != std::chrono::system_clock::time_point::max())
+    {
+        rrule << ";UNTIL=" << formatRFC5545UTC(endPt);
+    }
+
+    return rrule.str();
 }
 
 void GoogleCalendarApi::addEvent(const Event &event)
