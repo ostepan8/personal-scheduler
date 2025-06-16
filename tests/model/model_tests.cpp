@@ -210,6 +210,29 @@ static void testEventsInMonth()
     assert(evs[1].getId() == "3");
 }
 
+static void testRecurringInDayWeekMonth()
+{
+    Model m;
+    auto start = makeTime(2025,6,1,9);
+    auto pat = std::make_shared<DailyRecurrence>(start, 1);
+    RecurringEvent r("R","d","t", start, hours(1), pat);
+    OneTimeEvent o("O","d","t", makeTime(2025,6,3,10), hours(1));
+    m.addEvent(r);
+    m.addEvent(o);
+
+    auto day = makeTime(2025,6,3,0);
+    auto d = m.getEventsOnDay(day);
+    assert(d.size() == 2);
+    assert(d[0].getId() == "R");
+    assert(d[1].getId() == "O");
+
+    auto w = m.getEventsInWeek(day);
+    assert(w.size() == 8); // 7 occurrences + 1 one-time
+
+    auto mo = m.getEventsInMonth(day);
+    assert(mo.size() == 31); // 30 daily occurrences + 1 one-time
+}
+
 static void testEventsTimeZones()
 {
     const char *prevPtr = getenv("TZ");
@@ -299,6 +322,7 @@ int main()
     testEventsOnDay();
     testEventsInWeek();
     testEventsInMonth();
+    testRecurringInDayWeekMonth();
     testEventsTimeZones();
     testEventsChicagoTimeZone();
     cout << "Model tests passed\n";
