@@ -285,12 +285,36 @@ std::vector<Event> Model::getEventsOnDay(std::chrono::system_clock::time_point d
     for (const auto &kv : events)
     {
         const Event &e = *kv.second;
-        if (e.getTime() < start)
-            continue;
-        if (e.getTime() >= end)
-            break;
-        result.push_back(e);
+        if (!e.isRecurring())
+        {
+            if (e.getTime() < start)
+                continue;
+            if (e.getTime() >= end)
+                break;
+            result.push_back(e);
+        }
+        else
+        {
+            const auto *re = dynamic_cast<const RecurringEvent *>(kv.second.get());
+            if (!re)
+                continue;
+            auto times = re->getNextNOccurrences(start - std::chrono::seconds(1), 1000);
+            for (auto t : times)
+            {
+                if (t >= end)
+                    break;
+                if (t >= start)
+                {
+                    RecurringEvent occ(re->getId(), re->getDescription(), re->getTitle(),
+                                       t, re->getDuration(), re->getRecurrencePattern(),
+                                       re->getCategory());
+                    result.push_back(occ);
+                }
+            }
+        }
     }
+    std::sort(result.begin(), result.end(),
+              [](const Event &a, const Event &b) { return a.getTime() < b.getTime(); });
     return result;
 }
 
@@ -312,12 +336,36 @@ std::vector<Event> Model::getEventsInWeek(std::chrono::system_clock::time_point 
     for (const auto &kv : events)
     {
         const Event &e = *kv.second;
-        if (e.getTime() < start)
-            continue;
-        if (e.getTime() >= end)
-            break;
-        result.push_back(e);
+        if (!e.isRecurring())
+        {
+            if (e.getTime() < start)
+                continue;
+            if (e.getTime() >= end)
+                break;
+            result.push_back(e);
+        }
+        else
+        {
+            const auto *re = dynamic_cast<const RecurringEvent *>(kv.second.get());
+            if (!re)
+                continue;
+            auto times = re->getNextNOccurrences(start - std::chrono::seconds(1), 1000);
+            for (auto t : times)
+            {
+                if (t >= end)
+                    break;
+                if (t >= start)
+                {
+                    RecurringEvent occ(re->getId(), re->getDescription(), re->getTitle(),
+                                       t, re->getDuration(), re->getRecurrencePattern(),
+                                       re->getCategory());
+                    result.push_back(occ);
+                }
+            }
+        }
     }
+    std::sort(result.begin(), result.end(),
+              [](const Event &a, const Event &b) { return a.getTime() < b.getTime(); });
     return result;
 }
 
@@ -353,12 +401,36 @@ std::vector<Event> Model::getEventsInMonth(std::chrono::system_clock::time_point
     for (const auto &kv : events)
     {
         const Event &e = *kv.second;
-        if (e.getTime() < start)
-            continue;
-        if (e.getTime() >= end)
-            break;
-        result.push_back(e);
+        if (!e.isRecurring())
+        {
+            if (e.getTime() < start)
+                continue;
+            if (e.getTime() >= end)
+                break;
+            result.push_back(e);
+        }
+        else
+        {
+            const auto *re = dynamic_cast<const RecurringEvent *>(kv.second.get());
+            if (!re)
+                continue;
+            auto times = re->getNextNOccurrences(start - std::chrono::seconds(1), 1000);
+            for (auto t : times)
+            {
+                if (t >= end)
+                    break;
+                if (t >= start)
+                {
+                    RecurringEvent occ(re->getId(), re->getDescription(), re->getTitle(),
+                                       t, re->getDuration(), re->getRecurrencePattern(),
+                                       re->getCategory());
+                    result.push_back(occ);
+                }
+            }
+        }
     }
+    std::sort(result.begin(), result.end(),
+              [](const Event &a, const Event &b) { return a.getTime() < b.getTime(); });
     return result;
 }
 
