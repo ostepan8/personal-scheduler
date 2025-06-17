@@ -85,3 +85,4 @@ model.addCalendarApi(gcal);
 ```
 
 Whenever events are added or removed, the Google calendar is updated automatically. Additional providers can subclass `CalendarApi` and call their own scripts.
+The helper script is invoked with environment variables passed directly on the command line using the `env` tool. This avoids modifying the process environment so concurrent calendar updates cannot leak credentials between threads.
