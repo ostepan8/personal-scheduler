@@ -56,14 +56,32 @@ std::string GoogleCalendarApi::formatDateTime(std::chrono::system_clock::time_po
 
 bool GoogleCalendarApi::executePythonScript(const std::map<std::string, std::string> &env_vars) const
 {
-    // Set all environment variables
+    // Helper that escapes values for use in a shell command. We use single
+    // quotes to avoid interpretation of special characters and escape
+    // embedded single quotes using the standard `'"'"'` sequence.
+    auto shellEscape = [](const std::string &in) {
+        std::string out = "'";
+        for (char c : in)
+        {
+            if (c == '\'')
+                out += "'\"'\"'"; // end quote, escape single quote, reopen
+            else
+                out += c;
+        }
+        out += "'";
+        return out;
+    };
+
+    // Construct command with environment assignments instead of modifying the
+    // process environment. This avoids races when multiple API calls occur
+    // concurrently and prevents credentials from leaking into the parent
+    // process environment.
+    std::string command = "env";
     for (const auto &pair : env_vars)
     {
-        setenv(pair.first.c_str(), pair.second.c_str(), 1);
+        command += " " + pair.first + "=" + shellEscape(pair.second);
     }
-
-    // Construct the Python command
-    std::string command = "python3 " + python_script_path_ + " 2>&1"; // Redirect stderr to stdout
+    command += " python3 " + python_script_path_ + " 2>&1"; // Redirect stderr to stdout
 
     // Log the command and environment for debugging
     std::cout << "Executing: " << command << std::endl;
