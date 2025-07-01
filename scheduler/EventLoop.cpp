@@ -5,23 +5,29 @@ EventLoop::EventLoop(Model &m) : model_(m) {}
 
 EventLoop::~EventLoop() { stop(); }
 
-void EventLoop::start() {
-    if (running_) return;
+void EventLoop::start()
+{
+    if (running_)
+        return;
     running_ = true;
     worker_ = std::thread(&EventLoop::threadFunc, this);
 }
 
-void EventLoop::stop() {
-    if (!running_) return;
+void EventLoop::stop()
+{
+    if (!running_)
+        return;
     {
         std::lock_guard<std::mutex> lock(mtx_);
         running_ = false;
     }
     cv_.notify_all();
-    if (worker_.joinable()) worker_.join();
+    if (worker_.joinable())
+        worker_.join();
 }
 
-void EventLoop::addTask(const std::shared_ptr<ScheduledTask> &task) {
+void EventLoop::addTask(const std::shared_ptr<ScheduledTask> &task)
+{
     {
         std::lock_guard<std::mutex> lock(mtx_);
         model_.addEvent(*task);
@@ -30,18 +36,24 @@ void EventLoop::addTask(const std::shared_ptr<ScheduledTask> &task) {
     cv_.notify_one();
 }
 
-void EventLoop::threadFunc() {
+void EventLoop::threadFunc()
+{
     std::unique_lock<std::mutex> lock(mtx_);
-    while (running_) {
-        if (queue_.empty()) {
-            cv_.wait(lock, [&]{ return !running_ || !queue_.empty(); });
-            if (!running_) break;
+    while (running_)
+    {
+        if (queue_.empty())
+        {
+            cv_.wait(lock, [&]
+                     { return !running_ || !queue_.empty(); });
+            if (!running_)
+                break;
         }
 
         auto next = queue_.top();
         auto now = std::chrono::system_clock::now();
 
-        if (next->hasPendingNotifications() && now >= next->getNextNotifyTime()) {
+        if (next->hasPendingNotifications() && now >= next->getNextNotifyTime())
+        {
             lock.unlock();
             next->notify();
             lock.lock();
@@ -49,11 +61,13 @@ void EventLoop::threadFunc() {
             continue;
         }
 
-        if (now >= next->getTime()) {
+        if (now >= next->getTime())
+        {
             queue_.pop();
             lock.unlock();
             next->execute();
-            model_.removeEvent(next->getId());
+            // don't remove the events after they execute
+            // model_.removeEvent(next->getId());
             lock.lock();
             continue;
         }
