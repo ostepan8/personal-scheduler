@@ -39,7 +39,7 @@ void registerRoutes(httplib::Server &server, Model &model) {
             out["status"] = "ok";
             out["data"] = data;
         } catch (const std::exception &ex) {
-            out = { {"status","error"},{"message",ex.what()} };
+            out = { {"status","error"},{"message","Invalid input"} };
         }
         res.set_content(out.dump(), "application/json");
     });

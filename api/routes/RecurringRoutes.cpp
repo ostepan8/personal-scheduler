@@ -7,6 +7,7 @@
 #include "../../model/recurrence/MonthlyRecurrence.h"
 #include "../../model/recurrence/YearlyRecurrence.h"
 #include "../../utils/WeekDay.h"
+#include "../../utils/Sanitize.h"
 #include <iostream>
 
 using namespace std::chrono;
@@ -56,7 +57,7 @@ void registerRoutes(httplib::Server &server, Model &model) {
             out["status"] = "ok";
             out["data"] = data;
         } catch (const std::exception &ex) {
-            out = { {"status","error"},{"message",ex.what()} };
+            out = { {"status","error"},{"message","Invalid input"} };
         }
         res.set_content(out.dump(), "application/json");
     });
@@ -68,11 +69,11 @@ void registerRoutes(httplib::Server &server, Model &model) {
         try {
             auto body = nlohmann::json::parse(req.body);
             std::string id = model.generateUniqueId();
-            std::string title = body.value("title", "");
-            std::string description = body.value("description", "");
+            std::string title = sanitize(body.value("title", ""));
+            std::string description = sanitize(body.value("description", ""), 500);
             std::string startStr = body.at("start");
             int durationSec = body.value("duration", 3600);
-            std::string category = body.value("category", "");
+            std::string category = sanitize(body.value("category", ""));
             auto start = TimeUtils::parseTimePoint(startStr);
             auto pattern = parsePattern(body.at("pattern"), start);
             RecurringEvent e(id, description, title, start, seconds(durationSec), pattern, category);
@@ -80,7 +81,7 @@ void registerRoutes(httplib::Server &server, Model &model) {
             out["status"] = "ok";
             out["data"] = eventToJson(e);
         } catch (const std::exception &ex) {
-            out = { {"status","error"},{"message",ex.what()} };
+            out = { {"status","error"},{"message","Invalid input"} };
         }
         res.set_content(out.dump(), "application/json");
     });
@@ -92,11 +93,11 @@ void registerRoutes(httplib::Server &server, Model &model) {
         try {
             std::string id = req.matches[1];
             auto body = nlohmann::json::parse(req.body);
-            std::string title = body.at("title");
-            std::string description = body.value("description", "");
+            std::string title = sanitize(body.at("title"));
+            std::string description = sanitize(body.value("description", ""), 500);
             std::string startStr = body.at("start");
             int durationSec = body.value("duration", 3600);
-            std::string category = body.value("category", "");
+            std::string category = sanitize(body.value("category", ""));
             auto start = TimeUtils::parseTimePoint(startStr);
             auto pattern = parsePattern(body.at("pattern"), start);
             RecurringEvent updated(id, description, title, start, seconds(durationSec), pattern, category);
@@ -104,7 +105,7 @@ void registerRoutes(httplib::Server &server, Model &model) {
             out["status"] = "ok";
             out["data"] = eventToJson(updated);
         } catch (const std::exception &ex) {
-            out = { {"status","error"},{"message",ex.what()} };
+            out = { {"status","error"},{"message","Invalid input"} };
         }
         res.set_content(out.dump(), "application/json");
     });
@@ -118,7 +119,7 @@ void registerRoutes(httplib::Server &server, Model &model) {
             if (!model.removeEvent(id)) throw std::runtime_error("ID not found");
             out["status"] = "ok";
         } catch (const std::exception &ex) {
-            out = { {"status","error"},{"message",ex.what()} };
+            out = { {"status","error"},{"message","Invalid input"} };
         }
         res.set_content(out.dump(), "application/json");
     });

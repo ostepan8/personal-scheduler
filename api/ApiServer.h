@@ -2,6 +2,8 @@
 
 #include "../model/Model.h"
 #include "httplib.h"
+#include "../security/Auth.h"
+#include "../security/RateLimiter.h"
 
 // ApiServer exposes scheduler functionality via HTTP endpoints.
 // All times in requests/responses are local time strings "YYYY-MM-DD HH:MM".
@@ -9,14 +11,21 @@
 class ApiServer
 {
 public:
-    ApiServer(Model &model, int port = 8080);
+    // The server binds to `host` and `port`. Security features like
+    // authentication and rate limiting are configured via environment
+    // variables loaded by `EnvLoader`.
+    ApiServer(Model &model, int port = 8080, const std::string &host = "127.0.0.1");
     void start();
     void stop();
 
 private:
     Model &model_;
     int port_;
+    std::string host_;
+    std::string corsOrigin_;
     httplib::Server server_;
+    std::unique_ptr<Auth> auth_;
+    std::unique_ptr<RateLimiter> limiter_;
 
     void setupRoutes();
 };
