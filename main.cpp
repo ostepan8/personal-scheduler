@@ -4,11 +4,14 @@
 #include "api/ApiServer.h"
 #include "scheduler/EventLoop.h"
 #include "calendar/GoogleCalendarApi.h"
+#include "utils/EnvLoader.h"
 #include <vector>
 #include <memory>
 
 int main()
 {
+    // Load configuration from .env if present
+    EnvLoader::load();
     // Construct database and model using dependency injection
     SQLiteScheduleDatabase db("events.db");
     Model model(&db);
@@ -19,7 +22,11 @@ int main()
     loop.start();
 
     // Start the HTTP API server
-    ApiServer api(model);
+    const char *portEnv = getenv("PORT");
+    int port = portEnv ? std::stoi(portEnv) : 8080;
+    const char *hostEnv = getenv("HOST");
+    std::string host = hostEnv ? hostEnv : "127.0.0.1";
+    ApiServer api(model, port, host);
     api.start();
 
     loop.stop();

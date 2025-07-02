@@ -1,6 +1,7 @@
 #include "EventRoutes.h"
 #include "Serialization.h"
 #include "../../utils/TimeUtils.h"
+#include "../../utils/Sanitize.h"
 #include "../../model/OneTimeEvent.h"
 #include <climits>
 #include <iostream>
@@ -26,7 +27,7 @@ void registerRoutes(httplib::Server &server, Model &model) {
             out["status"] = "ok";
             out["data"] = data;
         } catch (const std::exception &ex) {
-            out = { {"status","error"},{"message",ex.what()} };
+            out = { {"status","error"},{"message","Invalid input"} };
         }
         res.set_content(out.dump(), "application/json");
     });
@@ -44,7 +45,7 @@ void registerRoutes(httplib::Server &server, Model &model) {
             out["status"] = "ok";
             out["data"] = nullptr;
         } catch (const std::exception &ex) {
-            out = { {"status","error"},{"message",ex.what()} };
+            out = { {"status","error"},{"message","Invalid input"} };
         }
         res.set_content(out.dump(), "application/json");
     });
@@ -68,7 +69,7 @@ void registerRoutes(httplib::Server &server, Model &model) {
             out["status"] = "ok";
             out["data"] = data;
         } catch (const std::exception &ex) {
-            out = { {"status","error"},{"message",ex.what()} };
+            out = { {"status","error"},{"message","Invalid input"} };
         }
         res.set_content(out.dump(), "application/json");
     });
@@ -89,7 +90,7 @@ void registerRoutes(httplib::Server &server, Model &model) {
             out["status"] = "ok";
             out["data"] = data;
         } catch (const std::exception &ex) {
-            out = { {"status","error"},{"message",ex.what()} };
+            out = { {"status","error"},{"message","Invalid input"} };
         }
         res.set_content(out.dump(), "application/json");
     });
@@ -110,7 +111,7 @@ void registerRoutes(httplib::Server &server, Model &model) {
             out["status"] = "ok";
             out["data"] = data;
         } catch (const std::exception &ex) {
-            out = { {"status","error"},{"message",ex.what()} };
+            out = { {"status","error"},{"message","Invalid input"} };
         }
         res.set_content(out.dump(), "application/json");
     });
@@ -127,7 +128,7 @@ void registerRoutes(httplib::Server &server, Model &model) {
             out["status"] = "ok";
             out["data"] = data;
         } catch (const std::exception &ex) {
-            out = { {"status","error"},{"message",ex.what()} };
+            out = { {"status","error"},{"message","Invalid input"} };
         }
         res.set_content(out.dump(), "application/json");
     });
@@ -145,7 +146,7 @@ void registerRoutes(httplib::Server &server, Model &model) {
             out["status"] = "ok";
             out["data"] = data;
         } catch (const std::exception &ex) {
-            out = { {"status","error"},{"message",ex.what()} };
+            out = { {"status","error"},{"message","Invalid input"} };
         }
         res.set_content(out.dump(), "application/json");
     });
@@ -163,7 +164,7 @@ void registerRoutes(httplib::Server &server, Model &model) {
             out["status"] = "ok";
             out["data"] = data;
         } catch (const std::exception &ex) {
-            out = { {"status","error"},{"message",ex.what()} };
+            out = { {"status","error"},{"message","Invalid input"} };
         }
         res.set_content(out.dump(), "application/json");
     });
@@ -181,7 +182,7 @@ void registerRoutes(httplib::Server &server, Model &model) {
             out["status"] = "ok";
             out["data"] = data;
         } catch (const std::exception &ex) {
-            out = { {"status","error"},{"message",ex.what()} };
+            out = { {"status","error"},{"message","Invalid input"} };
         }
         res.set_content(out.dump(), "application/json");
     });
@@ -199,7 +200,7 @@ void registerRoutes(httplib::Server &server, Model &model) {
             out["status"] = "ok";
             out["data"] = data;
         } catch (const std::exception &ex) {
-            out = { {"status","error"},{"message",ex.what()} };
+            out = { {"status","error"},{"message","Invalid input"} };
         }
         res.set_content(out.dump(), "application/json");
     });
@@ -212,11 +213,11 @@ void registerRoutes(httplib::Server &server, Model &model) {
         try {
             auto body = nlohmann::json::parse(req.body);
             std::string id = model.generateUniqueId();
-            std::string title = body.value("title", "");
-            std::string description = body.value("description", "");
+            std::string title = sanitize(body.value("title", ""));
+            std::string description = sanitize(body.value("description", ""), 500);
             std::string timeStr = body.at("time");
             int durationSec = body.value("duration", 0);
-            std::string category = body.value("category", "");
+            std::string category = sanitize(body.value("category", ""));
             auto time = TimeUtils::parseTimePoint(timeStr);
             OneTimeEvent e(id, description, title, time, seconds(durationSec), category);
             if (!model.addEvent(e)) {
@@ -225,7 +226,7 @@ void registerRoutes(httplib::Server &server, Model &model) {
             out["status"] = "ok";
             out["data"] = eventToJson(e);
         } catch (const std::exception &ex) {
-            out = { {"status","error"},{"message",ex.what()} };
+            out = { {"status","error"},{"message","Invalid input"} };
         }
         res.set_content(out.dump(), "application/json");
     });
@@ -238,11 +239,11 @@ void registerRoutes(httplib::Server &server, Model &model) {
         try {
             std::string id = req.matches[1];
             auto body = nlohmann::json::parse(req.body);
-            std::string title = body.at("title");
-            std::string description = body.value("description", "");
+            std::string title = sanitize(body.at("title"));
+            std::string description = sanitize(body.value("description", ""), 500);
             std::string timeStr = body.at("time");
             int durationSec = body.value("duration", 3600);
-            std::string category = body.value("category", "");
+            std::string category = sanitize(body.value("category", ""));
             auto time = TimeUtils::parseTimePoint(timeStr);
             OneTimeEvent updated(id, description, title, time, seconds(durationSec));
             updated.setCategory(category);
@@ -252,7 +253,7 @@ void registerRoutes(httplib::Server &server, Model &model) {
             out["status"] = "ok";
             out["data"] = eventToJson(updated);
         } catch (const std::exception &ex) {
-            out = { {"status","error"},{"message",ex.what()} };
+            out = { {"status","error"},{"message","Invalid input"} };
         }
         res.set_content(out.dump(), "application/json");
     });
@@ -267,11 +268,11 @@ void registerRoutes(httplib::Server &server, Model &model) {
             auto body = nlohmann::json::parse(req.body);
             auto existing = model.getEventById(id);
             if (!existing) throw std::runtime_error("Event not found");
-            std::string title = body.value("title", existing->getTitle());
-            std::string description = body.value("description", existing->getDescription());
+            std::string title = sanitize(body.value("title", existing->getTitle()));
+            std::string description = sanitize(body.value("description", existing->getDescription()), 500);
             std::string timeStr = body.value("time", TimeUtils::formatTimePoint(existing->getTime()));
             int durationSec = body.value("duration", (int)duration_cast<seconds>(existing->getDuration()).count());
-            std::string category = body.value("category", existing->getCategory());
+            std::string category = sanitize(body.value("category", existing->getCategory()));
             auto time = TimeUtils::parseTimePoint(timeStr);
             OneTimeEvent updated(id, description, title, time, seconds(durationSec));
             updated.setCategory(category);
@@ -281,7 +282,7 @@ void registerRoutes(httplib::Server &server, Model &model) {
             out["status"] = "ok";
             out["data"] = eventToJson(updated);
         } catch (const std::exception &ex) {
-            out = { {"status","error"},{"message",ex.what()} };
+            out = { {"status","error"},{"message","Invalid input"} };
         }
         res.set_content(out.dump(), "application/json");
     });
@@ -298,7 +299,7 @@ void registerRoutes(httplib::Server &server, Model &model) {
             out["status"] = "ok";
             out["data"] = data;
         } catch (const std::exception &ex) {
-            out = { {"status","error"},{"message",ex.what()} };
+            out = { {"status","error"},{"message","Invalid input"} };
         }
         res.set_content(out.dump(), "application/json");
     });
@@ -315,7 +316,7 @@ void registerRoutes(httplib::Server &server, Model &model) {
             out["status"] = "ok";
             out["message"] = "Event restored successfully";
         } catch (const std::exception &ex) {
-            out = { {"status","error"},{"message",ex.what()} };
+            out = { {"status","error"},{"message","Invalid input"} };
         }
         res.set_content(out.dump(), "application/json");
     });
@@ -329,7 +330,7 @@ void registerRoutes(httplib::Server &server, Model &model) {
             model.removeAllEvents();
             out["status"] = "ok";
         } catch (const std::exception &ex) {
-            out = { {"status","error"},{"message",ex.what()} };
+            out = { {"status","error"},{"message","Invalid input"} };
         }
         res.set_content(out.dump(), "application/json");
     });
@@ -345,7 +346,7 @@ void registerRoutes(httplib::Server &server, Model &model) {
             out["status"] = "ok";
             out["removed"] = n;
         } catch (const std::exception &ex) {
-            out = { {"status","error"},{"message",ex.what()} };
+            out = { {"status","error"},{"message","Invalid input"} };
         }
         res.set_content(out.dump(), "application/json");
     });
@@ -361,7 +362,7 @@ void registerRoutes(httplib::Server &server, Model &model) {
             out["status"] = "ok";
             out["removed"] = n;
         } catch (const std::exception &ex) {
-            out = { {"status","error"},{"message",ex.what()} };
+            out = { {"status","error"},{"message","Invalid input"} };
         }
         res.set_content(out.dump(), "application/json");
     });
@@ -379,7 +380,7 @@ void registerRoutes(httplib::Server &server, Model &model) {
             out["status"] = "ok";
             out["removed"] = n;
         } catch (const std::exception &ex) {
-            out = { {"status","error"},{"message",ex.what()} };
+            out = { {"status","error"},{"message","Invalid input"} };
         }
         res.set_content(out.dump(), "application/json");
     });
@@ -397,7 +398,7 @@ void registerRoutes(httplib::Server &server, Model &model) {
             out["status"] = "ok";
             out["soft_delete"] = softDelete;
         } catch (const std::exception &ex) {
-            out = { {"status","error"},{"message",ex.what()} };
+            out = { {"status","error"},{"message","Invalid input"} };
         }
         res.set_content(out.dump(), "application/json");
     });
