@@ -232,6 +232,13 @@ std::string GoogleCalendarApi::convertRecurrence(const Event &event) const
     return rrule.str();
 }
 
+bool GoogleCalendarApi::isTask(const Event &event) const
+{
+    auto cat = event.getCategory();
+    std::transform(cat.begin(), cat.end(), cat.begin(), ::tolower);
+    return cat == "task" || event.getDuration() == std::chrono::seconds(0);
+}
+
 void GoogleCalendarApi::addEvent(const Event &event)
 {
     std::cout << "\n=== GoogleCalendarApi::addEvent ===" << std::endl;
@@ -240,19 +247,34 @@ void GoogleCalendarApi::addEvent(const Event &event)
     auto start_time = formatDateTime(event.getTime());
     auto end_time = formatDateTime(event.getTime() + event.getDuration());
 
-    std::map<std::string, std::string> env_vars = {
-        {"GCAL_ACTION", "add"},
-        {"GCAL_CREDS", credentials_file_},
-        {"GCAL_CALENDAR_ID", calendar_id_},
-        {"GCAL_TITLE", event.getTitle()},
-        {"GCAL_START", start_time},
-        {"GCAL_END", end_time},
-        {"GCAL_DESC", event.getDescription()},
-        {"GCAL_TZ", "UTC"}, // You might want to make this configurable
-        {"GCAL_EVENT_ID", event.getId()}};
+    std::map<std::string, std::string> env_vars;
+    if (isTask(event))
+    {
+        env_vars = {
+            {"GCAL_ACTION", "add_task"},
+            {"GCAL_CREDS", credentials_file_},
+            {"GCAL_TASKLIST_ID", calendar_id_},
+            {"GCAL_TITLE", event.getTitle()},
+            {"GCAL_DESC", event.getDescription()},
+            {"GCAL_DUE", start_time},
+            {"GCAL_TASK_ID", event.getId()}};
+    }
+    else
+    {
+        env_vars = {
+            {"GCAL_ACTION", "add"},
+            {"GCAL_CREDS", credentials_file_},
+            {"GCAL_CALENDAR_ID", calendar_id_},
+            {"GCAL_TITLE", event.getTitle()},
+            {"GCAL_START", start_time},
+            {"GCAL_END", end_time},
+            {"GCAL_DESC", event.getDescription()},
+            {"GCAL_TZ", "UTC"},
+            {"GCAL_EVENT_ID", event.getId()}};
+    }
 
-    // Add recurrence if applicable
-    if (event.isRecurring())
+    // Add recurrence if applicable for calendar events only
+    if (!isTask(event) && event.isRecurring())
     {
         env_vars["GCAL_RECURRENCE"] = convertRecurrence(event);
     }
@@ -274,16 +296,31 @@ void GoogleCalendarApi::updateEvent(const Event &oldEvent, const Event &newEvent
         auto start_time = formatDateTime(newEvent.getTime());
         auto end_time = formatDateTime(newEvent.getTime() + newEvent.getDuration());
 
-        std::map<std::string, std::string> env_vars = {
-            {"GCAL_ACTION", "update"},
-            {"GCAL_CREDS", credentials_file_},
-            {"GCAL_CALENDAR_ID", calendar_id_},
-            {"GCAL_EVENT_ID", newEvent.getId()},
-            {"GCAL_TITLE", newEvent.getTitle()},
-            {"GCAL_START", start_time},
-            {"GCAL_END", end_time},
-            {"GCAL_DESC", newEvent.getDescription()},
-            {"GCAL_TZ", "UTC"}};
+        std::map<std::string, std::string> env_vars;
+        if (isTask(newEvent))
+        {
+            env_vars = {
+                {"GCAL_ACTION", "update_task"},
+                {"GCAL_CREDS", credentials_file_},
+                {"GCAL_TASKLIST_ID", calendar_id_},
+                {"GCAL_TASK_ID", newEvent.getId()},
+                {"GCAL_TITLE", newEvent.getTitle()},
+                {"GCAL_DESC", newEvent.getDescription()},
+                {"GCAL_DUE", start_time}};
+        }
+        else
+        {
+            env_vars = {
+                {"GCAL_ACTION", "update"},
+                {"GCAL_CREDS", credentials_file_},
+                {"GCAL_CALENDAR_ID", calendar_id_},
+                {"GCAL_EVENT_ID", newEvent.getId()},
+                {"GCAL_TITLE", newEvent.getTitle()},
+                {"GCAL_START", start_time},
+                {"GCAL_END", end_time},
+                {"GCAL_DESC", newEvent.getDescription()},
+                {"GCAL_TZ", "UTC"}};
+        }
 
         if (!executePythonScript(env_vars))
         {
@@ -304,10 +341,20 @@ void GoogleCalendarApi::deleteEvent(const Event &event)
     std::cout << "Deleting event: " << event.getTitle() << std::endl;
 
     std::map<std::string, std::string> env_vars = {
-        {"GCAL_ACTION", "delete"},
-        {"GCAL_CREDS", credentials_file_},
-        {"GCAL_CALENDAR_ID", calendar_id_},
-        {"GCAL_EVENT_ID", event.getId()}};
+        {"GCAL_CREDS", credentials_file_}};
+
+    if (isTask(event))
+    {
+        env_vars["GCAL_ACTION"] = "delete_task";
+        env_vars["GCAL_TASKLIST_ID"] = calendar_id_;
+        env_vars["GCAL_TASK_ID"] = event.getId();
+    }
+    else
+    {
+        env_vars["GCAL_ACTION"] = "delete";
+        env_vars["GCAL_CALENDAR_ID"] = calendar_id_;
+        env_vars["GCAL_EVENT_ID"] = event.getId();
+    }
 
     if (!executePythonScript(env_vars))
     {
