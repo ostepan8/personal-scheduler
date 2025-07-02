@@ -193,7 +193,7 @@ void Controller::run()
 
         string id = model_.generateUniqueId();
         auto notifyCb = [note,id,title](){ note(id,title); };
-        OneTimeEvent e{id, desc, title, tp, hours(1)};
+        OneTimeEvent e{id, desc, title, tp, std::chrono::seconds(0), "task"};
         scheduleTask(e, leadTimes, notifyCb, act);
         cout << "Added task [" << id << "]\n";
     };

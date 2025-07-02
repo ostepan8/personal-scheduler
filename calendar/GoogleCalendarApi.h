@@ -40,6 +40,8 @@ private:
     // Convert Event recurrence pattern to Google Calendar RRULE
     std::string convertRecurrence(const Event &event) const;
 
+    bool isTask(const Event &event) const;
+
 public:
     GoogleCalendarApi(const std::string &credentials_file,
                       const std::string &calendar_id = "primary",
