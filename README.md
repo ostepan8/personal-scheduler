@@ -86,3 +86,11 @@ model.addCalendarApi(gcal);
 
 Whenever events are added or removed, the Google calendar is updated automatically. Additional providers can subclass `CalendarApi` and call their own scripts.
 The helper script is invoked with environment variables passed directly on the command line using the `env` tool. This avoids modifying the process environment so concurrent calendar updates cannot leak credentials between threads.
+
+## API Security
+
+The HTTP server can be secured via environment variables loaded from a `.env` file.
+Set `API_KEY` to a secret string and provide it in the `Authorization` header for
+all requests. Optional `ADMIN_API_KEY` may grant elevated privileges. Bind address
+and port are configured with `HOST` and `PORT`. Rate limiting and CORS settings
+are also configurable. See `.env.example` for details.

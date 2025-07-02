@@ -14,7 +14,10 @@ static void runServer(ApiServer &srv) {
     srv.start();
 }
 
+static const char *API_KEY_VAL = "secret";
+
 static void testDayEndpoint() {
+    setenv("API_KEY", API_KEY_VAL, 1);
     Model m;
     OneTimeEvent e1("1","d","t", makeTime(2025,6,1,9), hours(1));
     m.addEvent(e1);
@@ -23,7 +26,8 @@ static void testDayEndpoint() {
     this_thread::sleep_for(milliseconds(100));
 
     httplib::Client cli("localhost", 8085);
-    auto res = cli.Get("/events/day/2025-06-01");
+    httplib::Headers h{{"Authorization", API_KEY_VAL}};
+    auto res = cli.Get("/events/day/2025-06-01", h);
     assert(res && res->status == 200);
     auto j = json::parse(res->body);
     assert(j["status"] == "ok");
@@ -34,6 +38,7 @@ static void testDayEndpoint() {
 }
 
 static void testWeekEndpoint() {
+    setenv("API_KEY", API_KEY_VAL, 1);
     Model m;
     OneTimeEvent e1("1","d","t", makeTime(2025,6,2,9), hours(1)); // Monday
     OneTimeEvent e2("2","d","t", makeTime(2025,6,8,10), hours(1)); // Sunday
@@ -43,7 +48,8 @@ static void testWeekEndpoint() {
     this_thread::sleep_for(milliseconds(100));
 
     httplib::Client cli("localhost", 8086);
-    auto res = cli.Get("/events/week/2025-06-03");
+    httplib::Headers h{{"Authorization", API_KEY_VAL}};
+    auto res = cli.Get("/events/week/2025-06-03", h);
     assert(res && res->status == 200);
     auto j = json::parse(res->body);
     assert(j["status"] == "ok");
@@ -54,6 +60,7 @@ static void testWeekEndpoint() {
 }
 
 static void testMonthEndpoint() {
+    setenv("API_KEY", API_KEY_VAL, 1);
     Model m;
     OneTimeEvent e1("1","d","t", makeTime(2025,6,2,9), hours(1));
     OneTimeEvent e2("2","d","t", makeTime(2025,7,1,9), hours(1));
@@ -63,7 +70,8 @@ static void testMonthEndpoint() {
     this_thread::sleep_for(milliseconds(100));
 
     httplib::Client cli("localhost", 8087);
-    auto res = cli.Get("/events/month/2025-06");
+    httplib::Headers h{{"Authorization", API_KEY_VAL}};
+    auto res = cli.Get("/events/month/2025-06", h);
     assert(res && res->status == 200);
     auto j = json::parse(res->body);
     assert(j["status"] == "ok");
@@ -74,13 +82,16 @@ static void testMonthEndpoint() {
 }
 
 static void testCORSEnabled() {
+    setenv("API_KEY", API_KEY_VAL, 1);
+    setenv("CORS_ORIGIN", "*", 1);
     Model m;
     ApiServer srv(m, 8088);
     thread th(runServer, std::ref(srv));
     this_thread::sleep_for(milliseconds(100));
 
     httplib::Client cli("localhost", 8088);
-    auto res = cli.Options("/events");
+    httplib::Headers h{{"Authorization", API_KEY_VAL}};
+    auto res = cli.Options("/events", h);
     assert(res && res->status == 200);
     assert(res->get_header_value("Access-Control-Allow-Origin") == "*");
     assert(!res->get_header_value("Access-Control-Allow-Methods").empty());
@@ -90,6 +101,7 @@ static void testCORSEnabled() {
 }
 
 static void testDeleteAllEndpoint() {
+    setenv("API_KEY", API_KEY_VAL, 1);
     Model m;
     OneTimeEvent e1("1","d","t", makeTime(2025,6,1,9), hours(1));
     m.addEvent(e1);
@@ -98,12 +110,13 @@ static void testDeleteAllEndpoint() {
     this_thread::sleep_for(milliseconds(100));
 
     httplib::Client cli("localhost", 8089);
-    auto res = cli.Delete("/events");
+    httplib::Headers h{{"Authorization", API_KEY_VAL}};
+    auto res = cli.Delete("/events", h);
     assert(res && res->status == 200);
     auto j = json::parse(res->body);
     assert(j["status"] == "ok");
 
-    auto res2 = cli.Get("/events");
+    auto res2 = cli.Get("/events", h);
     auto j2 = json::parse(res2->body);
     assert(j2["data"].size() == 0);
 
@@ -112,6 +125,7 @@ static void testDeleteAllEndpoint() {
 }
 
 static void testDeleteDayEndpoint() {
+    setenv("API_KEY", API_KEY_VAL, 1);
     Model m;
     OneTimeEvent e1("1","d","t", makeTime(2025,6,1,9), hours(1));
     m.addEvent(e1);
@@ -120,12 +134,13 @@ static void testDeleteDayEndpoint() {
     this_thread::sleep_for(milliseconds(100));
 
     httplib::Client cli("localhost", 8090);
-    auto res = cli.Delete("/events/day/2025-06-01");
+    httplib::Headers h{{"Authorization", API_KEY_VAL}};
+    auto res = cli.Delete("/events/day/2025-06-01", h);
     assert(res && res->status == 200);
     auto j = json::parse(res->body);
     assert(j["status"] == "ok");
 
-    auto res2 = cli.Get("/events");
+    auto res2 = cli.Get("/events", h);
     auto j2 = json::parse(res2->body);
     assert(j2["data"].size() == 0);
 
@@ -134,6 +149,7 @@ static void testDeleteDayEndpoint() {
 }
 
 static void testDeleteBeforeEndpoint() {
+    setenv("API_KEY", API_KEY_VAL, 1);
     Model m;
     OneTimeEvent e1("1","d","t", makeTime(2025,6,1,9), hours(1));
     OneTimeEvent e2("2","d","t", makeTime(2025,6,3,9), hours(1));
@@ -143,12 +159,13 @@ static void testDeleteBeforeEndpoint() {
     this_thread::sleep_for(milliseconds(100));
 
     httplib::Client cli("localhost", 8091);
-    auto res = cli.Delete("/events/before/2025-06-02T00:00");
+    httplib::Headers h{{"Authorization", API_KEY_VAL}};
+    auto res = cli.Delete("/events/before/2025-06-02T00:00", h);
     assert(res && res->status == 200);
     auto j = json::parse(res->body);
     assert(j["status"] == "ok");
 
-    auto res2 = cli.Get("/events");
+    auto res2 = cli.Get("/events", h);
     auto j2 = json::parse(res2->body);
     assert(j2["data"].size() == 1);
 
