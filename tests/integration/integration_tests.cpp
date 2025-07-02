@@ -17,10 +17,13 @@ static void runServer(ApiServer &srv) {
     srv.start();
 }
 
+static const char *API_KEY_VAL = "secret";
+
 int main() {
     const char *path = "integration_test.db";
     std::remove(path);
 
+    setenv("API_KEY", API_KEY_VAL, 1);
     SQLiteScheduleDatabase db(path);
     Model model(&db);
     TextualView view(model);
@@ -38,7 +41,8 @@ int main() {
     cin.rdbuf(cinBuf);
 
     httplib::Client cli("localhost", 8099);
-    auto res = cli.Get("/events");
+    httplib::Headers h{{"Authorization", API_KEY_VAL}};
+    auto res = cli.Get("/events", h);
     assert(res && res->status == 200);
     json j = json::parse(res->body);
     assert(j["status"] == "ok");
@@ -48,12 +52,12 @@ int main() {
     assert(j["data"][0]["description"] == "Desc1");
     assert(j["data"][0]["time"] == "2025-06-05 12:30");
 
-    auto res2 = cli.Delete( ("/events/" + id).c_str() );
+    auto res2 = cli.Delete( ("/events/" + id).c_str(), h );
     assert(res2 && res2->status == 200);
     json j2 = json::parse(res2->body);
     assert(j2["status"] == "ok");
 
-    auto res3 = cli.Get("/events");
+    auto res3 = cli.Get("/events", h);
     assert(res3 && res3->status == 200);
     json j3 = json::parse(res3->body);
     assert(j3["data"].size() == 0);

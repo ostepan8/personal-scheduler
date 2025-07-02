@@ -23,7 +23,10 @@ SRCS = main.cpp \
        api/routes/RecurringRoutes.cpp \
        database/SQLiteScheduleDatabase.cpp \
        scheduler/EventLoop.cpp \
-       calendar/GoogleCalendarApi.cpp
+       calendar/GoogleCalendarApi.cpp \
+       utils/EnvLoader.cpp \
+       security/Auth.cpp \
+       security/RateLimiter.cpp
 
 # Object files
 OBJS = $(SRCS:.cpp=.o)
@@ -157,6 +160,9 @@ API_TEST_SRCS = tests/api/api_tests.cpp \
                 api/routes/AvailabilityRoutes.cpp \
                 api/routes/StatsRoutes.cpp \
                 api/routes/RecurringRoutes.cpp \
+                utils/EnvLoader.cpp \
+                security/Auth.cpp \
+                security/RateLimiter.cpp \
                 model/Model.cpp \
                 model/OneTimeEvent.cpp \
                 model/RecurringEvent.cpp \
@@ -208,7 +214,7 @@ GCAL_TEST_SRCS = tests/calendar/google_calendar_api_tests.cpp \
                  model/recurrence/WeeklyRecurrence.cpp \
                  model/recurrence/MonthlyRecurrence.cpp \
                  model/recurrence/YearlyRecurrence.cpp
-GCAL_TEST_OBJS = $(GCAL_TEST_SRCS:.cpp:.o)
+GCAL_TEST_OBJS = $(GCAL_TEST_SRCS:.cpp=.o)
 GCAL_TEST_TARGET = google_calendar_api_tests
 
 # Integration tests
@@ -220,6 +226,9 @@ INTEGRATION_TEST_SRCS = tests/integration/integration_tests.cpp \
                        api/routes/AvailabilityRoutes.cpp \
                        api/routes/StatsRoutes.cpp \
                        api/routes/RecurringRoutes.cpp \
+                       utils/EnvLoader.cpp \
+                       security/Auth.cpp \
+                       security/RateLimiter.cpp \
                        model/Model.cpp \
                        model/OneTimeEvent.cpp \
                        model/RecurringEvent.cpp \
@@ -276,7 +285,7 @@ $(API_TEST_TARGET): $(API_TEST_OBJS)
 	$(CXX) $(CXXFLAGS) $(API_TEST_OBJS) $(LIBS) -o $@
 
 $(DATABASE_TEST_TARGET): $(DATABASE_TEST_OBJS)
-	$(CXX) $(CXXFLAGS) $(DATABASE_TEST_OBJS) $(LIBS) -o $
+	$(CXX) $(CXXFLAGS) $(DATABASE_TEST_OBJS) $(LIBS) -o $@
 
 $(ACTION_REGISTRY_TEST_TARGET): $(ACTION_REGISTRY_TEST_OBJS)
 	$(CXX) $(CXXFLAGS) $(ACTION_REGISTRY_TEST_OBJS) $(LIBS) -o $@
@@ -287,7 +296,7 @@ $(BUILTIN_ACTIONS_TEST_TARGET): $(BUILTIN_ACTIONS_TEST_OBJS)
 $(NOTIFICATION_REGISTRY_TEST_TARGET): $(NOTIFICATION_REGISTRY_TEST_OBJS)
 	$(CXX) $(CXXFLAGS) $(NOTIFICATION_REGISTRY_TEST_OBJS) $(LIBS) -o $@
 
-$(BUILTIN_NOTIFIERS_TEST_TARGET): $(BUILTIN_NOTIFIERS_TEST_OBJS) $(LIBS)
+$(BUILTIN_NOTIFIERS_TEST_TARGET): $(BUILTIN_NOTIFIERS_TEST_OBJS)
 	$(CXX) $(CXXFLAGS) $(BUILTIN_NOTIFIERS_TEST_OBJS) $(LIBS) -o $@
 
 $(GCAL_TEST_TARGET): $(GCAL_TEST_OBJS)
