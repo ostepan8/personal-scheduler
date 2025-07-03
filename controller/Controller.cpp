@@ -330,6 +330,7 @@ void Controller::scheduleTask(const Event &e,
     auto task = std::make_shared<ScheduledTask>(
         e.getId(), e.getDescription(), e.getTitle(), e.getTime(), e.getDuration(),
         notifyTimes, std::move(notifyCb), std::move(actionCb));
+    task->setCategory("task");
     loop_->addTask(task);
 }
 
