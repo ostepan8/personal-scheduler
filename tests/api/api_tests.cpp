@@ -4,7 +4,9 @@
 #include "../../model/Model.h"
 #include "../../model/OneTimeEvent.h"
 #include "../test_utils.h"
+#include "../../scheduler/EventLoop.h"
 #include "../../external/json/nlohmann/json.hpp"
+#include <algorithm>
 
 using json = nlohmann::json;
 using namespace std;
@@ -173,6 +175,51 @@ static void testDeleteBeforeEndpoint() {
     th.join();
 }
 
+static void testNotifierAndActionEndpoints() {
+    setenv("API_KEY", API_KEY_VAL, 1);
+    Model m;
+    EventLoop loop(m);
+    loop.start();
+    ApiServer srv(m, 8092, "127.0.0.1", &loop);
+    std::thread th(runServer, std::ref(srv));
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+    httplib::Client cli("localhost", 8092);
+    httplib::Headers h{{"Authorization", API_KEY_VAL}};
+    auto res1 = cli.Get("/notifiers", h);
+    assert(res1 && res1->status == 200);
+    auto j1 = json::parse(res1->body);
+    assert(j1["status"] == "ok");
+    assert(std::find(j1["data"].begin(), j1["data"].end(), "console") != j1["data"].end());
+
+    auto res2 = cli.Get("/actions", h);
+    assert(res2 && res2->status == 200);
+    auto j2 = json::parse(res2->body);
+    assert(j2["status"] == "ok");
+    assert(std::find(j2["data"].begin(), j2["data"].end(), "hello") != j2["data"].end());
+
+    json body = {
+        {"title","Task"},
+        {"description","demo"},
+        {"time","2025-06-01 12:00"},
+        {"notifier","console"},
+        {"action","hello"}
+    };
+    auto res3 = cli.Post("/tasks", h, body.dump(), "application/json");
+    assert(res3 && res3->status == 200);
+    auto j3 = json::parse(res3->body);
+    assert(j3["status"] == "ok");
+
+    auto res4 = cli.Get("/tasks", h);
+    auto j4 = json::parse(res4->body);
+    assert(j4["status"] == "ok");
+    assert(j4["data"].size() == 1);
+
+    srv.stop();
+    th.join();
+    loop.stop();
+}
+
 int main() {
     testDayEndpoint();
     testWeekEndpoint();
@@ -181,6 +228,7 @@ int main() {
     testDeleteAllEndpoint();
     testDeleteDayEndpoint();
     testDeleteBeforeEndpoint();
+    testNotifierAndActionEndpoints();
     cout << "API tests passed\n";
     return 0;
 }
