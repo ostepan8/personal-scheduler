@@ -21,6 +21,7 @@ SRCS = main.cpp \
        api/routes/AvailabilityRoutes.cpp \
        api/routes/StatsRoutes.cpp \
        api/routes/RecurringRoutes.cpp \
+       api/routes/TaskRoutes.cpp \
        database/SQLiteScheduleDatabase.cpp \
        scheduler/EventLoop.cpp \
        calendar/GoogleCalendarApi.cpp \
@@ -41,7 +42,8 @@ MVC_SRCS = $(filter-out \
              api/routes/EventRoutes.cpp \
              api/routes/AvailabilityRoutes.cpp \
              api/routes/StatsRoutes.cpp \
-             api/routes/RecurringRoutes.cpp, \
+             api/routes/RecurringRoutes.cpp \
+             api/routes/TaskRoutes.cpp, \
            $(SRCS)) \
            main_mvc.cpp
 MVC_OBJS = $(MVC_SRCS:.cpp=.o)
@@ -160,6 +162,8 @@ API_TEST_SRCS = tests/api/api_tests.cpp \
                 api/routes/AvailabilityRoutes.cpp \
                 api/routes/StatsRoutes.cpp \
                 api/routes/RecurringRoutes.cpp \
+                api/routes/TaskRoutes.cpp \
+                scheduler/EventLoop.cpp \
                 utils/EnvLoader.cpp \
                 security/Auth.cpp \
                 security/RateLimiter.cpp \
@@ -226,6 +230,7 @@ INTEGRATION_TEST_SRCS = tests/integration/integration_tests.cpp \
                        api/routes/AvailabilityRoutes.cpp \
                        api/routes/StatsRoutes.cpp \
                        api/routes/RecurringRoutes.cpp \
+                       api/routes/TaskRoutes.cpp \
                        utils/EnvLoader.cpp \
                        security/Auth.cpp \
                        security/RateLimiter.cpp \

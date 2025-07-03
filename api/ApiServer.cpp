@@ -3,13 +3,16 @@
 #include "routes/AvailabilityRoutes.h"
 #include "routes/StatsRoutes.h"
 #include "routes/RecurringRoutes.h"
+#include "routes/TaskRoutes.h"
+#include "../utils/BuiltinActions.h"
+#include "../utils/BuiltinNotifiers.h"
 #include "../utils/EnvLoader.h"
 #include "../security/Auth.h"
 #include "../security/RateLimiter.h"
 #include <iostream>
 
-ApiServer::ApiServer(Model &model, int port, const std::string &host)
-    : model_(model), port_(port), host_(host) {
+ApiServer::ApiServer(Model &model, int port, const std::string &host, EventLoop *loop)
+    : model_(model), port_(port), host_(host), loop_(loop) {
     const char *key = getenv("API_KEY");
     const char *adm = getenv("ADMIN_API_KEY");
     if (key) auth_ = std::make_unique<Auth>(key, adm ? adm : "");
@@ -20,6 +23,10 @@ ApiServer::ApiServer(Model &model, int port, const std::string &host)
     limiter_ = std::make_unique<RateLimiter>(maxReq, std::chrono::seconds(sec));
     const char *cors = getenv("CORS_ORIGIN");
     if (cors) corsOrigin_ = cors;
+
+    BuiltinActions::registerAll();
+    BuiltinNotifiers::registerAll();
+
     setupRoutes();
 }
 
@@ -74,4 +81,5 @@ void ApiServer::setupRoutes() {
     AvailabilityRoutes::registerRoutes(server_, model_);
     StatsRoutes::registerRoutes(server_, model_);
     RecurringRoutes::registerRoutes(server_, model_);
+    TaskRoutes::registerRoutes(server_, model_, loop_);
 }
