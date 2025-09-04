@@ -15,13 +15,18 @@ OneTimeEvent::OneTimeEvent(const std::string &id,
 // Clone implementation
 std::unique_ptr<Event> OneTimeEvent::clone() const
 {
-    return std::make_unique<OneTimeEvent>(
+    auto ptr = std::make_unique<OneTimeEvent>(
         getId(),
         getDescription(),
         getTitle(),
         getTime(),
         std::chrono::duration_cast<std::chrono::seconds>(getDuration()),
         getCategory());
+    ptr->setNotifierName(getNotifierName());
+    ptr->setActionName(getActionName());
+    ptr->setProviderEventId(getProviderEventId());
+    ptr->setProviderTaskId(getProviderTaskId());
+    return ptr;
 }
 // Notify implementation (optional - can be customized)
 void OneTimeEvent::notify()

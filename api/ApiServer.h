@@ -5,6 +5,7 @@
 #include "../security/Auth.h"
 #include "../security/RateLimiter.h"
 #include "../scheduler/EventLoop.h"
+#include "../processing/WakeScheduler.h"
 
 // ApiServer exposes scheduler functionality via HTTP endpoints.
 // All times in requests/responses are local time strings "YYYY-MM-DD HH:MM".
@@ -18,7 +19,9 @@ public:
     ApiServer(Model &model,
               int port = 8080,
               const std::string &host = "127.0.0.1",
-              EventLoop *loop = nullptr);
+              EventLoop *loop = nullptr,
+              WakeScheduler *wake = nullptr,
+              SettingsStore *settings = nullptr);
     void start();
     void stop();
 
@@ -31,6 +34,8 @@ private:
     std::unique_ptr<Auth> auth_;
     std::unique_ptr<RateLimiter> limiter_;
     EventLoop *loop_;
+    WakeScheduler *wake_;
+    SettingsStore *settings_;
 
     void setupRoutes();
 };

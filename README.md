@@ -1,14 +1,45 @@
 # Personal Scheduler
 
-All event timestamps are stored internally in UTC to ensure consistent
-behavior across time zones. When interacting with the CLI you provide and
-view times in your **local time zone**. The scheduler converts local input
-times to UTC for storage and converts them back to local time when events
-are displayed.
+All event timestamps are stored internally as absolute instants (UTC epoch).
+When interacting with the CLI and HTTP API you provide and view times in your
+local time zone. The scheduler converts local inputs to UTC for storage and
+converts UTC back to local for display. Google Calendar/Tasks integration also
+uses UTC (RFC3339 `Z`) to avoid ambiguity.
 
 Summary:
 - **Input and output:** local time
 - **Internal storage:** UTC
+
+## Quick Start
+
+1) Configure environment:
+
+Create a `.env` file (see `.env.example`) with at least:
+
+```
+API_KEY=changeme
+# Optional: require admin for destructive deletes
+ADMIN_API_KEY=
+HOST=127.0.0.1
+PORT=8080
+# Browser origin to allow (for frontends)
+CORS_ORIGIN=http://localhost:3000
+# Rate limiting (requests per window)
+RATE_LIMIT=100
+RATE_WINDOW=60
+```
+
+2) Build and run the API server:
+
+```
+make api && ./api_server
+```
+
+3) Call the API (replace the key):
+
+```
+curl -H 'Authorization: changeme' http://localhost:8080/events
+```
 
 ## Running Tests
 
@@ -20,6 +51,9 @@ Events are stored in an SQLite database (`events.db`). On startup the model
 loads all events from this database, reconstructing recurring patterns so
 commands like `list` and `nextn` work across restarts. The database tests in
 `tests/database` verify this behavior.
+
+Schema evolves automatically. If you upgrade from older versions, the server
+will add missing columns (`category`, `notifier`, `action`) on startup.
 
 ### Preload Horizon
 
@@ -40,6 +74,11 @@ The scheduler now includes an active `EventLoop` component. Tasks derived from
 callbacks. The loop runs in a background thread, dispatching notifications a
 few minutes before each task executes and invoking the task's action at the
 scheduled time.
+
+On server startup, all persisted future tasks (events with category `task`)
+are re-enqueued so their notifications/actions continue after restarts. If a
+task was created via the API/CLI with named notifier/action, those names are
+restored and looked up in the registries.
 
 ## Customising Notifications and Actions
 
@@ -91,6 +130,19 @@ The helper script is invoked with environment variables passed directly on the c
 
 The HTTP server can be secured via environment variables loaded from a `.env` file.
 Set `API_KEY` to a secret string and provide it in the `Authorization` header for
-all requests. Optional `ADMIN_API_KEY` may grant elevated privileges. Bind address
-and port are configured with `HOST` and `PORT`. Rate limiting and CORS settings
-are also configurable. See `.env.example` for details.
+all requests. If `ADMIN_API_KEY` is set, destructive DELETE routes (clear all,
+delete day/week/before, hard delete) require the admin key; soft deletes are
+allowed with the normal API key. Bind address and port are configured with
+`HOST` and `PORT`. Rate limiting (`RATE_LIMIT`, `RATE_WINDOW`) and CORS are
+configurable (set `CORS_ORIGIN` to your frontend origin). See `.env.example`.
+
+## Events Listing and Expansion
+
+`GET /events` returns stored event seeds by default. To list actual scheduled
+occurrences (including expansions of recurring events), use:
+
+```
+GET /events?expanded=true&start=YYYY-MM-DD HH:MM&end=YYYY-MM-DD HH:MM
+```
+
+If `start`/`end` are omitted, it defaults to [now, now + 1 year].

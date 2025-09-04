@@ -43,7 +43,6 @@ namespace TaskRoutes
         server.Get("/notifiers", [](const httplib::Request &, httplib::Response &res)
                    {
         std::cout << "GET /notifiers request received" << std::endl;
-        res.set_header("Access-Control-Allow-Origin", "*");
         nlohmann::json out;
         try {
             auto names = NotificationRegistry::availableNotifiers();
@@ -59,7 +58,6 @@ namespace TaskRoutes
         server.Get("/actions", [](const httplib::Request &, httplib::Response &res)
                    {
         std::cout << "GET /actions request received" << std::endl;
-        res.set_header("Access-Control-Allow-Origin", "*");
         nlohmann::json out;
         try {
             auto names = ActionRegistry::availableActions();
@@ -75,7 +73,6 @@ namespace TaskRoutes
         server.Get("/tasks", [&model](const httplib::Request &, httplib::Response &res)
                    {
         std::cout << "GET /tasks request received" << std::endl;
-        res.set_header("Access-Control-Allow-Origin", "*");
         nlohmann::json out;
         try {
             auto horizon = system_clock::now() + hours(24 * 365 * 5);
@@ -104,7 +101,6 @@ namespace TaskRoutes
             server.Post("/tasks", [loop, &model](const httplib::Request &req, httplib::Response &res)
                         {
             std::cout << "POST /tasks request received with body: " << req.body << std::endl;
-            res.set_header("Access-Control-Allow-Origin", "*");
             nlohmann::json out;
             try {
                 auto body = nlohmann::json::parse(req.body);
@@ -174,6 +170,9 @@ namespace TaskRoutes
                                             e.getTime(), e.getDuration(), notifyTimes,
                                             notifyCb, action);
                 task->setCategory("task");
+                // Persist notifier/action names for re-enqueue after restart
+                task->setNotifierName(notifierName);
+                task->setActionName(actionName);
                 loop->addTask(task);
                 std::cout << "Task added to event loop" << std::endl;
                 

@@ -84,6 +84,12 @@ public:
       std::chrono::system_clock::time_point start,
       std::chrono::system_clock::time_point end) const;
 
+  // Get events within a range, expanding recurring series into occurrences
+  std::vector<Event> getEventsInRangeExpanded(
+      std::chrono::system_clock::time_point start,
+      std::chrono::system_clock::time_point end,
+      int maxOccurrencesPerSeries = 10000) const;
+
   // Get events by duration range (in minutes)
   std::vector<Event> getEventsByDuration(int minMinutes, int maxMinutes) const;
 

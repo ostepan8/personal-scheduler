@@ -12,7 +12,6 @@ namespace AvailabilityRoutes {
 
 void registerRoutes(httplib::Server &server, Model &model) {
     server.Get("/events/conflicts", [&model](const httplib::Request &req, httplib::Response &res) {
-        res.set_header("Access-Control-Allow-Origin", "*");
         std::cout << "GET /events/conflicts" << std::endl;
         nlohmann::json out;
         try {
@@ -33,7 +32,6 @@ void registerRoutes(httplib::Server &server, Model &model) {
     });
 
     server.Post("/events/validate", [&model](const httplib::Request &req, httplib::Response &res) {
-        res.set_header("Access-Control-Allow-Origin", "*");
         std::cout << "POST /events/validate" << std::endl;
         nlohmann::json out;
         try {
@@ -59,7 +57,6 @@ void registerRoutes(httplib::Server &server, Model &model) {
     });
 
     server.Get(R"(/free-slots/(\d{4}-\d{2}-\d{2}))", [&model](const httplib::Request &req, httplib::Response &res) {
-        res.set_header("Access-Control-Allow-Origin", "*");
         std::cout << "GET /free-slots/" << req.matches[1] << std::endl;
         nlohmann::json out;
         try {
@@ -82,7 +79,6 @@ void registerRoutes(httplib::Server &server, Model &model) {
     });
 
     server.Get("/free-slots/next", [&model](const httplib::Request &req, httplib::Response &res) {
-        res.set_header("Access-Control-Allow-Origin", "*");
         std::cout << "GET /free-slots/next" << std::endl;
         nlohmann::json out;
         try {

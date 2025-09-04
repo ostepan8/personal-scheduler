@@ -1,6 +1,6 @@
 # Compiler and flags
 CXX       = g++
-CXXFLAGS  = -std=c++14 -Wall -Iapi -Iexternal/json -Ischeduler
+CXXFLAGS  = -std=c++17 -Wall -Iapi -Iexternal/json -Ischeduler -MMD -MP
 
 # Libraries to link
 LIBS      = -lsqlite3 -pthread -lcurl
@@ -22,8 +22,11 @@ SRCS = main.cpp \
        api/routes/StatsRoutes.cpp \
        api/routes/RecurringRoutes.cpp \
        api/routes/TaskRoutes.cpp \
+       api/routes/WakeRoutes.cpp \
        database/SQLiteScheduleDatabase.cpp \
+       database/SettingsStore.cpp \
        scheduler/EventLoop.cpp \
+       processing/WakeScheduler.cpp \
        calendar/GoogleCalendarApi.cpp \
        utils/EnvLoader.cpp \
        security/Auth.cpp \
@@ -31,6 +34,7 @@ SRCS = main.cpp \
 
 # Object files
 OBJS = $(SRCS:.cpp=.o)
+DEPS = $(OBJS:.o=.d)
 
 # Executable names
 API_TARGET = api_server
@@ -43,10 +47,12 @@ MVC_SRCS = $(filter-out \
              api/routes/AvailabilityRoutes.cpp \
              api/routes/StatsRoutes.cpp \
              api/routes/RecurringRoutes.cpp \
-             api/routes/TaskRoutes.cpp, \
+             api/routes/TaskRoutes.cpp \
+             api/routes/WakeRoutes.cpp, \
            $(SRCS)) \
            main_mvc.cpp
 MVC_OBJS = $(MVC_SRCS:.cpp=.o)
+MVC_DEPS = $(MVC_OBJS:.o=.d)
 
 # Default build: API server
 $(API_TARGET): $(OBJS)
@@ -64,6 +70,8 @@ api: $(API_TARGET)
 # Compile any .cpp into .o
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+-include $(DEPS) $(MVC_DEPS)
 
 # Clean up builds and tests
 clean:

@@ -10,6 +10,7 @@ void EventLoop::start()
     if (running_)
         return;
     running_ = true;
+    fprintf(stderr, "[eventloop] starting thread\n");
     worker_ = std::thread(&EventLoop::threadFunc, this);
 }
 
@@ -30,7 +31,13 @@ void EventLoop::addTask(const std::shared_ptr<ScheduledTask> &task)
 {
     {
         std::lock_guard<std::mutex> lock(mtx_);
-        model_.addEvent(*task);
+        // For internal tasks (e.g., wake) do not persist to model/DB or sync to providers
+        if (task->getCategory() != "internal") {
+            // Upsert into model: add or update existing event by ID
+            if (!model_.addEvent(*task)) {
+                model_.updateEvent(task->getId(), *task);
+            }
+        }
         queue_.push(task);
     }
     cv_.notify_one();
@@ -38,19 +45,30 @@ void EventLoop::addTask(const std::shared_ptr<ScheduledTask> &task)
 
 void EventLoop::threadFunc()
 {
+    fprintf(stderr, "[eventloop] thread running\n");
     std::unique_lock<std::mutex> lock(mtx_);
     while (running_)
     {
+        fprintf(stderr, "[eventloop] loop tick, queue size=%zu\n", queue_.size());
         if (queue_.empty())
         {
             cv_.wait(lock, [&]
                      { return !running_ || !queue_.empty(); });
+            fprintf(stderr, "[eventloop] woke, running=%d, queue size=%zu\n", (int)running_.load(), queue_.size());
             if (!running_)
                 break;
         }
 
         auto next = queue_.top();
         auto now = std::chrono::system_clock::now();
+
+        // If this queued task is outdated (model has different time for same ID), drop it
+        if (auto current = model_.getEventById(next->getId())) {
+            if (current->getTime() != next->getTime()) {
+                queue_.pop();
+                continue;
+            }
+        }
 
         if (next->hasPendingNotifications() && now >= next->getNextNotifyTime())
         {
