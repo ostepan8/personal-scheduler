@@ -60,7 +60,6 @@ string Controller::addRecurringEvent(const string &title,
     string titleCopy = title;
     RecurringEvent e(idCopy, descCopy, titleCopy, start, dur, std::move(pattern));
     model_.addEvent(e);
-    scheduleTask(e);
     return idCopy;
 }
 
@@ -120,6 +119,15 @@ void Controller::run()
         system_clock::time_point start;
         try { start = TimeUtils::parseTimePoint(timestr); }
         catch(const exception &e) { cout << e.what() << "\n"; return; }
+        // Ask for duration (minutes)
+        cout << "Enter duration in minutes (default 60): ";
+        string durStr; getline(cin, durStr);
+        int durMin = 60;
+        if (!durStr.empty()) {
+            try { durMin = stoi(durStr); }
+            catch(const exception &) { cout << "Invalid duration, using 60 minutes.\n"; durMin = 60; }
+            if (durMin <= 0) { cout << "Duration must be positive, using 60 minutes.\n"; durMin = 60; }
+        }
         cout << "Recurrence type (daily/weekly): "; getline(cin, rtype);
         shared_ptr<RecurrencePattern> pat;
         if (rtype == "weekly" || rtype == "w") {
@@ -135,7 +143,7 @@ void Controller::run()
             cin.ignore(numeric_limits<streamsize>::max(), '\n');
             pat = make_shared<DailyRecurrence>(start, days);
         }
-        string id = addRecurringEvent(title, desc, start, hours(1), pat);
+        string id = addRecurringEvent(title, desc, start, std::chrono::minutes(durMin), pat);
         cout << "Added recurring event [" << id << "]\n";
     };
 
@@ -194,6 +202,9 @@ void Controller::run()
         string id = model_.generateUniqueId();
         auto notifyCb = [note,id,title](){ note(id,title); };
         OneTimeEvent e{id, desc, title, tp, std::chrono::seconds(0), "task"};
+        // Stash names so ScheduledTask clone persists them to DB
+        e.setNotifierName(notifierName);
+        e.setActionName(actionName);
         scheduleTask(e, leadTimes, notifyCb, act);
         cout << "Added task [" << id << "]\n";
     };
@@ -327,10 +338,15 @@ void Controller::scheduleTask(const Event &e,
         }
     }
 
+    // Use a distinct ID for the scheduled task to avoid collisions with the
+    // base calendar event stored in the model/database.
+    std::string taskId = model_.generateUniqueId();
     auto task = std::make_shared<ScheduledTask>(
-        e.getId(), e.getDescription(), e.getTitle(), e.getTime(), e.getDuration(),
+        taskId, e.getDescription(), e.getTitle(), e.getTime(), e.getDuration(),
         notifyTimes, std::move(notifyCb), std::move(actionCb));
     task->setCategory("task");
+    task->setNotifierName(e.getNotifierName());
+    task->setActionName(e.getActionName());
     loop_->addTask(task);
 }
 

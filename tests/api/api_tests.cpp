@@ -3,6 +3,8 @@
 #include "../../api/ApiServer.h"
 #include "../../model/Model.h"
 #include "../../model/OneTimeEvent.h"
+#include "../../model/RecurringEvent.h"
+#include "../../model/recurrence/DailyRecurrence.h"
 #include "../test_utils.h"
 #include "../../scheduler/EventLoop.h"
 #include "../../external/json/nlohmann/json.hpp"
@@ -220,6 +222,39 @@ static void testNotifierAndActionEndpoints() {
     loop.stop();
 }
 
+static void testEventsExpandedEndpoint() {
+    setenv("API_KEY", API_KEY_VAL, 1);
+    Model m;
+    auto start = makeTime(2025,6,1,9);
+    auto pat = std::make_shared<DailyRecurrence>(start, 1);
+    RecurringEvent r("R","d","daily", start, std::chrono::hours(1), pat);
+    m.addEvent(r);
+
+    ApiServer srv(m, 8093);
+    std::thread th(runServer, std::ref(srv));
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+    httplib::Client cli("localhost", 8093);
+    httplib::Headers h{{"Authorization", API_KEY_VAL}};
+
+    // Non-expanded should return the stored entries (1 recurring seed)
+    auto res0 = cli.Get("/events", h);
+    assert(res0 && res0->status == 200);
+    auto j0 = json::parse(res0->body);
+    assert(j0["status"] == "ok");
+    assert(j0["data"].size() == 1);
+
+    // Expanded with a 3-day window should return 3 occurrences
+    auto res = cli.Get("/events?expanded=true&start=2025-06-01%2000:00&end=2025-06-04%2000:00", h);
+    assert(res && res->status == 200);
+    auto j = json::parse(res->body);
+    assert(j["status"] == "ok");
+    assert(j["data"].size() == 3);
+
+    srv.stop();
+    th.join();
+}
+
 int main() {
     testDayEndpoint();
     testWeekEndpoint();
@@ -229,6 +264,7 @@ int main() {
     testDeleteDayEndpoint();
     testDeleteBeforeEndpoint();
     testNotifierAndActionEndpoints();
+    testEventsExpandedEndpoint();
     cout << "API tests passed\n";
     return 0;
 }

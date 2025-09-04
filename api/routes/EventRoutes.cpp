@@ -11,18 +11,33 @@ using ApiSerialization::eventToJson;
 
 namespace EventRoutes {
 
-void registerRoutes(httplib::Server &server, Model &model) {
-    // All events
+void registerRoutes(httplib::Server &server, Model &model, WakeScheduler *wake) {
+    // All events (optionally expanded occurrences)
     server.Get("/events", [&model](const httplib::Request &req, httplib::Response &res) {
-        res.set_header("Access-Control-Allow-Origin", "*");
-        std::cout << "GET /events" << std::endl;
+        
+        std::cout << "GET /events";
+        if (req.has_param("expanded")) std::cout << "?expanded=" << req.get_param_value("expanded");
+        if (req.has_param("start")) std::cout << "&start=" << req.get_param_value("start");
+        if (req.has_param("end")) std::cout << "&end=" << req.get_param_value("end");
+        std::cout << std::endl;
         nlohmann::json out;
         try {
-            auto farFuture = system_clock::now() + hours(24 * 365);
-            auto events = model.getEvents(-1, farFuture);
+            bool expanded = req.has_param("expanded") && (req.get_param_value("expanded") == "true" || req.get_param_value("expanded") == "1");
+            auto now = system_clock::now();
+            auto defaultEnd = now + hours(24 * 365);
+            auto start = now;
+            auto end = defaultEnd;
+            if (req.has_param("start")) start = TimeUtils::parseTimePoint(req.get_param_value("start"));
+            if (req.has_param("end")) end = TimeUtils::parseTimePoint(req.get_param_value("end"));
+
             nlohmann::json data = nlohmann::json::array();
-            for (const auto &ev : events) {
-                data.push_back(eventToJson(ev));
+            if (expanded) {
+                auto events = model.getEventsInRangeExpanded(start, end);
+                for (const auto &ev : events) data.push_back(eventToJson(ev));
+            } else {
+                // Seed view (non-expanded), use far-future cutoff as before
+                auto events = model.getEvents(-1, defaultEnd);
+                for (const auto &ev : events) data.push_back(eventToJson(ev));
             }
             out["status"] = "ok";
             out["data"] = data;
@@ -34,7 +49,7 @@ void registerRoutes(httplib::Server &server, Model &model) {
 
     // Next event
     server.Get("/events/next", [&model](const httplib::Request &, httplib::Response &res) {
-        res.set_header("Access-Control-Allow-Origin", "*");
+        
         std::cout << "GET /events/next" << std::endl;
         nlohmann::json out;
         try {
@@ -52,7 +67,7 @@ void registerRoutes(httplib::Server &server, Model &model) {
 
     // Search events
     server.Get("/events/search", [&model](const httplib::Request &req, httplib::Response &res) {
-        res.set_header("Access-Control-Allow-Origin", "*");
+        
         std::cout << "GET /events/search" << std::endl;
         nlohmann::json out;
         try {
@@ -76,13 +91,13 @@ void registerRoutes(httplib::Server &server, Model &model) {
 
     // Events in range
     server.Get(R"(/events/range/(\d{4}-\d{2}-\d{2})/(\d{4}-\d{2}-\d{2}))", [&model](const httplib::Request &req, httplib::Response &res) {
-        res.set_header("Access-Control-Allow-Origin", "*");
+        
         std::cout << "GET /events/range/" << req.matches[1] << "/" << req.matches[2] << std::endl;
         nlohmann::json out;
         try {
             auto start = TimeUtils::parseDate(req.matches[1]);
             auto end = TimeUtils::parseDate(req.matches[2]) + hours(24);
-            auto events = model.getEventsInRange(start, end);
+            auto events = model.getEventsInRangeExpanded(start, end);
             nlohmann::json data = nlohmann::json::array();
             for (const auto &ev : events) {
                 data.push_back(eventToJson(ev));
@@ -97,7 +112,7 @@ void registerRoutes(httplib::Server &server, Model &model) {
 
     // Events by duration
     server.Get("/events/duration", [&model](const httplib::Request &req, httplib::Response &res) {
-        res.set_header("Access-Control-Allow-Origin", "*");
+        
         std::cout << "GET /events/duration" << std::endl;
         nlohmann::json out;
         try {
@@ -118,7 +133,7 @@ void registerRoutes(httplib::Server &server, Model &model) {
 
     // Categories list
     server.Get("/categories", [&model](const httplib::Request &, httplib::Response &res) {
-        res.set_header("Access-Control-Allow-Origin", "*");
+        
         std::cout << "GET /categories" << std::endl;
         nlohmann::json out;
         try {
@@ -135,7 +150,7 @@ void registerRoutes(httplib::Server &server, Model &model) {
 
     // Events by category
     server.Get(R"(/events/category/(.+))", [&model](const httplib::Request &req, httplib::Response &res) {
-        res.set_header("Access-Control-Allow-Origin", "*");
+        
         std::cout << "GET /events/category/" << req.matches[1] << std::endl;
         nlohmann::json out;
         try {
@@ -153,7 +168,7 @@ void registerRoutes(httplib::Server &server, Model &model) {
 
     // Events by day
     server.Get(R"(/events/day/(\d{4}-\d{2}-\d{2}))", [&model](const httplib::Request &req, httplib::Response &res) {
-        res.set_header("Access-Control-Allow-Origin", "*");
+        
         std::cout << "GET /events/day/" << req.matches[1] << std::endl;
         nlohmann::json out;
         try {
@@ -171,7 +186,7 @@ void registerRoutes(httplib::Server &server, Model &model) {
 
     // Events by week
     server.Get(R"(/events/week/(\d{4}-\d{2}-\d{2}))", [&model](const httplib::Request &req, httplib::Response &res) {
-        res.set_header("Access-Control-Allow-Origin", "*");
+        
         std::cout << "GET /events/week/" << req.matches[1] << std::endl;
         nlohmann::json out;
         try {
@@ -189,7 +204,7 @@ void registerRoutes(httplib::Server &server, Model &model) {
 
     // Events by month
     server.Get(R"(/events/month/(\d{4}-\d{2}))", [&model](const httplib::Request &req, httplib::Response &res) {
-        res.set_header("Access-Control-Allow-Origin", "*");
+        
         std::cout << "GET /events/month/" << req.matches[1] << std::endl;
         nlohmann::json out;
         try {
@@ -206,8 +221,8 @@ void registerRoutes(httplib::Server &server, Model &model) {
     });
 
     // Create new event
-    server.Post("/events", [&model](const httplib::Request &req, httplib::Response &res) {
-        res.set_header("Access-Control-Allow-Origin", "*");
+    server.Post("/events", [&model, wake](const httplib::Request &req, httplib::Response &res) {
+        
         std::cout << "POST /events" << std::endl;
         nlohmann::json out;
         try {
@@ -225,6 +240,10 @@ void registerRoutes(httplib::Server &server, Model &model) {
             }
             out["status"] = "ok";
             out["data"] = eventToJson(e);
+            if (wake) {
+                auto day = TimeUtils::parseDate(TimeUtils::formatTimePoint(e.getTime()).substr(0,10));
+                wake->scheduleForDate(day);
+            }
         } catch (const std::exception &ex) {
             out = { {"status","error"},{"message","Invalid input"} };
         }
@@ -232,8 +251,8 @@ void registerRoutes(httplib::Server &server, Model &model) {
     });
 
     // Update event
-    server.Put(R"(/events/(.+))", [&model](const httplib::Request &req, httplib::Response &res) {
-        res.set_header("Access-Control-Allow-Origin", "*");
+    server.Put(R"(/events/(.+))", [&model, wake](const httplib::Request &req, httplib::Response &res) {
+        
         std::cout << "PUT /events/" << req.matches[1] << std::endl;
         nlohmann::json out;
         try {
@@ -252,6 +271,10 @@ void registerRoutes(httplib::Server &server, Model &model) {
             }
             out["status"] = "ok";
             out["data"] = eventToJson(updated);
+            if (wake) {
+                auto day = TimeUtils::parseDate(TimeUtils::formatTimePoint(updated.getTime()).substr(0,10));
+                wake->scheduleForDate(day);
+            }
         } catch (const std::exception &ex) {
             out = { {"status","error"},{"message","Invalid input"} };
         }
@@ -259,8 +282,8 @@ void registerRoutes(httplib::Server &server, Model &model) {
     });
 
     // Patch event
-    server.Patch(R"(/events/(.+))", [&model](const httplib::Request &req, httplib::Response &res) {
-        res.set_header("Access-Control-Allow-Origin", "*");
+    server.Patch(R"(/events/(.+))", [&model, wake](const httplib::Request &req, httplib::Response &res) {
+        
         std::cout << "PATCH /events/" << req.matches[1] << std::endl;
         nlohmann::json out;
         try {
@@ -281,6 +304,10 @@ void registerRoutes(httplib::Server &server, Model &model) {
             }
             out["status"] = "ok";
             out["data"] = eventToJson(updated);
+            if (wake) {
+                auto day = TimeUtils::parseDate(TimeUtils::formatTimePoint(updated.getTime()).substr(0,10));
+                wake->scheduleForDate(day);
+            }
         } catch (const std::exception &ex) {
             out = { {"status","error"},{"message","Invalid input"} };
         }
@@ -289,7 +316,7 @@ void registerRoutes(httplib::Server &server, Model &model) {
 
     // Deleted events
     server.Get("/events/deleted", [&model](const httplib::Request &, httplib::Response &res) {
-        res.set_header("Access-Control-Allow-Origin", "*");
+        
         std::cout << "GET /events/deleted" << std::endl;
         nlohmann::json out;
         try {
@@ -306,7 +333,7 @@ void registerRoutes(httplib::Server &server, Model &model) {
 
     // Restore event
     server.Post(R"(/events/(.+)/restore)", [&model](const httplib::Request &req, httplib::Response &res) {
-        res.set_header("Access-Control-Allow-Origin", "*");
+        
         std::cout << "POST /events/" << req.matches[1] << "/restore" << std::endl;
         nlohmann::json out;
         try {
@@ -322,13 +349,14 @@ void registerRoutes(httplib::Server &server, Model &model) {
     });
 
     // Delete all events
-    server.Delete("/events", [&model](const httplib::Request &, httplib::Response &res) {
-        res.set_header("Access-Control-Allow-Origin", "*");
+    server.Delete("/events", [&model, wake](const httplib::Request &, httplib::Response &res) {
+        
         std::cout << "DELETE /events" << std::endl;
         nlohmann::json out;
         try {
             model.removeAllEvents();
             out["status"] = "ok";
+            if (wake) wake->scheduleToday();
         } catch (const std::exception &ex) {
             out = { {"status","error"},{"message","Invalid input"} };
         }
@@ -336,8 +364,8 @@ void registerRoutes(httplib::Server &server, Model &model) {
     });
 
     // Delete day
-    server.Delete(R"(/events/day/(\d{4}-\d{2}-\d{2}))", [&model](const httplib::Request &req, httplib::Response &res) {
-        res.set_header("Access-Control-Allow-Origin", "*");
+    server.Delete(R"(/events/day/(\d{4}-\d{2}-\d{2}))", [&model, wake](const httplib::Request &req, httplib::Response &res) {
+        
         std::cout << "DELETE /events/day/" << req.matches[1] << std::endl;
         nlohmann::json out;
         try {
@@ -345,6 +373,7 @@ void registerRoutes(httplib::Server &server, Model &model) {
             int n = model.removeEventsOnDay(day);
             out["status"] = "ok";
             out["removed"] = n;
+            if (wake) wake->scheduleForDate(day);
         } catch (const std::exception &ex) {
             out = { {"status","error"},{"message","Invalid input"} };
         }
@@ -352,8 +381,8 @@ void registerRoutes(httplib::Server &server, Model &model) {
     });
 
     // Delete week
-    server.Delete(R"(/events/week/(\d{4}-\d{2}-\d{2}))", [&model](const httplib::Request &req, httplib::Response &res) {
-        res.set_header("Access-Control-Allow-Origin", "*");
+    server.Delete(R"(/events/week/(\d{4}-\d{2}-\d{2}))", [&model, wake](const httplib::Request &req, httplib::Response &res) {
+        
         std::cout << "DELETE /events/week/" << req.matches[1] << std::endl;
         nlohmann::json out;
         try {
@@ -361,6 +390,7 @@ void registerRoutes(httplib::Server &server, Model &model) {
             int n = model.removeEventsInWeek(day);
             out["status"] = "ok";
             out["removed"] = n;
+            if (wake) wake->scheduleToday();
         } catch (const std::exception &ex) {
             out = { {"status","error"},{"message","Invalid input"} };
         }
@@ -368,8 +398,8 @@ void registerRoutes(httplib::Server &server, Model &model) {
     });
 
     // Delete before time
-    server.Delete(R"(/events/before/(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}))", [&model](const httplib::Request &req, httplib::Response &res) {
-        res.set_header("Access-Control-Allow-Origin", "*");
+    server.Delete(R"(/events/before/(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}))", [&model, wake](const httplib::Request &req, httplib::Response &res) {
+        
         std::cout << "DELETE /events/before/" << req.matches[1] << std::endl;
         nlohmann::json out;
         try {
@@ -379,6 +409,7 @@ void registerRoutes(httplib::Server &server, Model &model) {
             int n = model.removeEventsBefore(tp);
             out["status"] = "ok";
             out["removed"] = n;
+            if (wake) wake->scheduleToday();
         } catch (const std::exception &ex) {
             out = { {"status","error"},{"message","Invalid input"} };
         }
@@ -386,8 +417,8 @@ void registerRoutes(httplib::Server &server, Model &model) {
     });
 
     // Delete single event
-    server.Delete(R"(/events/(.+))", [&model](const httplib::Request &req, httplib::Response &res) {
-        res.set_header("Access-Control-Allow-Origin", "*");
+    server.Delete(R"(/events/(.+))", [&model, wake](const httplib::Request &req, httplib::Response &res) {
+        
         std::cout << "DELETE /events/" << req.matches[1] << std::endl;
         nlohmann::json out;
         try {
@@ -397,6 +428,7 @@ void registerRoutes(httplib::Server &server, Model &model) {
             if (!ok) throw std::runtime_error("ID not found");
             out["status"] = "ok";
             out["soft_delete"] = softDelete;
+            if (wake) wake->scheduleToday();
         } catch (const std::exception &ex) {
             out = { {"status","error"},{"message","Invalid input"} };
         }
@@ -405,4 +437,3 @@ void registerRoutes(httplib::Server &server, Model &model) {
 }
 
 } // namespace EventRoutes
-

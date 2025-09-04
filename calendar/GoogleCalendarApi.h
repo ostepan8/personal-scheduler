@@ -35,7 +35,8 @@ private:
                                const std::string &timezone = "UTC") const;
 
     // Helper to execute Python script with environment variables
-    bool executePythonScript(const std::map<std::string, std::string> &env_vars) const;
+    // If out is provided, captures combined stdout/stderr output
+    bool executePythonScript(const std::map<std::string, std::string> &env_vars, std::string *out = nullptr) const;
 
     // Convert Event recurrence pattern to Google Calendar RRULE
     std::string convertRecurrence(const Event &event) const;
@@ -47,8 +48,8 @@ public:
                       const std::string &calendar_id = "primary",
                       const std::string &python_script_path = "calendar_integration/gcal_service.py");
 
-    void addEvent(const Event &event) override;
-    void updateEvent(const Event &oldEvent, const Event &newEvent) override;
+    ProviderIds addEvent(const Event &event) override;
+    ProviderIds updateEvent(const Event &oldEvent, const Event &newEvent) override;
     void deleteEvent(const Event &event) override;
 
     // Optional: Add a method to test the connection

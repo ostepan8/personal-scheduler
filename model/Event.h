@@ -10,11 +10,17 @@ protected:
     std::string id;
     std::string description;
     std::string title;
-    // Stored in UTC regardless of the user's local timezone
+    // Stored as an absolute moment (UTC-based epoch internally).
     std::chrono::system_clock::time_point timeUtc;
     std::chrono::system_clock::duration duration;
     bool recurringFlag;
     std::string category; // New member for category support
+    // External provider IDs (e.g., Google Calendar/Tasks)
+    std::string providerEventId_;
+    std::string providerTaskId_;
+    // Optional task metadata: names registered in notifier/action registries
+    std::string notifierName_;
+    std::string actionName_;
 
 public:
     // Updated constructor with optional category parameter
@@ -56,6 +62,10 @@ public:
     std::string getTitle() const { return title; }
     bool isRecurring() const { return recurringFlag; }
     std::string getCategory() const { return category; }
+    std::string getProviderEventId() const { return providerEventId_; }
+    std::string getProviderTaskId() const { return providerTaskId_; }
+    std::string getNotifierName() const { return notifierName_; }
+    std::string getActionName() const { return actionName_; }
 
     // ===== Setter methods for updates =====
 
@@ -64,6 +74,10 @@ public:
     void setTime(std::chrono::system_clock::time_point newTime) { timeUtc = newTime; }
     void setDuration(std::chrono::system_clock::duration newDuration) { duration = newDuration; }
     void setCategory(const std::string &newCategory) { category = newCategory; }
+    void setProviderEventId(const std::string &pid) { providerEventId_ = pid; }
+    void setProviderTaskId(const std::string &pid) { providerTaskId_ = pid; }
+    void setNotifierName(const std::string &name) { notifierName_ = name; }
+    void setActionName(const std::string &name) { actionName_ = name; }
 
     // ===== Comparison operators for sorting =====
 

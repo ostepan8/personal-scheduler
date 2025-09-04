@@ -44,7 +44,6 @@ static std::shared_ptr<RecurrencePattern> parsePattern(const nlohmann::json &j,
 
 void registerRoutes(httplib::Server &server, Model &model) {
     server.Get("/recurring", [&model](const httplib::Request &, httplib::Response &res) {
-        res.set_header("Access-Control-Allow-Origin", "*");
         std::cout << "GET /recurring" << std::endl;
         nlohmann::json out;
         try {
@@ -63,7 +62,6 @@ void registerRoutes(httplib::Server &server, Model &model) {
     });
 
     server.Post("/recurring", [&model](const httplib::Request &req, httplib::Response &res) {
-        res.set_header("Access-Control-Allow-Origin", "*");
         std::cout << "POST /recurring" << std::endl;
         nlohmann::json out;
         try {
@@ -87,7 +85,6 @@ void registerRoutes(httplib::Server &server, Model &model) {
     });
 
     server.Put(R"(/recurring/(.+))", [&model](const httplib::Request &req, httplib::Response &res) {
-        res.set_header("Access-Control-Allow-Origin", "*");
         std::cout << "PUT /recurring/" << req.matches[1] << std::endl;
         nlohmann::json out;
         try {
@@ -111,7 +108,6 @@ void registerRoutes(httplib::Server &server, Model &model) {
     });
 
     server.Delete(R"(/recurring/(.+))", [&model](const httplib::Request &req, httplib::Response &res) {
-        res.set_header("Access-Control-Allow-Origin", "*");
         std::cout << "DELETE /recurring/" << req.matches[1] << std::endl;
         nlohmann::json out;
         try {
@@ -126,4 +122,3 @@ void registerRoutes(httplib::Server &server, Model &model) {
 }
 
 } // namespace RecurringRoutes
-

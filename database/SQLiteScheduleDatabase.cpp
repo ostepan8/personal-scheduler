@@ -26,7 +26,12 @@ SQLiteScheduleDatabase::SQLiteScheduleDatabase(const std::string &path)
         "title TEXT,"
         "time INTEGER,"
         "duration INTEGER,"
-        "recurrence TEXT);";
+        "recurrence TEXT,"
+        "category TEXT,"
+        "notifier TEXT,"
+        "action TEXT,"
+        "google_event_id TEXT,"
+        "google_task_id TEXT);";
     char *errMsg = nullptr;
     if (sqlite3_exec(db_.get(), createSql, nullptr, nullptr, &errMsg) != SQLITE_OK)
     {
@@ -34,13 +39,114 @@ SQLiteScheduleDatabase::SQLiteScheduleDatabase(const std::string &path)
         sqlite3_free(errMsg);
         throw std::runtime_error(msg);
     }
+
+    // Migration: add missing columns if an existing DB lacks them
+    bool hasCategory = false;
+    bool hasNotifier = false;
+    bool hasAction = false;
+    bool hasGoogleEventId = false;
+    bool hasGoogleTaskId = false;
+    const char *pragmaSql = "PRAGMA table_info(events);";
+    sqlite3_stmt *pragmaStmt = nullptr;
+    if (sqlite3_prepare_v2(db_.get(), pragmaSql, -1, &pragmaStmt, nullptr) == SQLITE_OK)
+    {
+        while (sqlite3_step(pragmaStmt) == SQLITE_ROW)
+        {
+            // PRAGMA table_info returns: cid, name, type, notnull, dflt_value, pk
+            const unsigned char *name = sqlite3_column_text(pragmaStmt, 1);
+            if (name)
+            {
+                std::string col = reinterpret_cast<const char *>(name);
+                if (col == "category") hasCategory = true;
+                else if (col == "notifier") hasNotifier = true;
+                else if (col == "action") hasAction = true;
+                else if (col == "google_event_id") hasGoogleEventId = true;
+                else if (col == "google_task_id") hasGoogleTaskId = true;
+            }
+        }
+    }
+    sqlite3_finalize(pragmaStmt);
+
+    if (!hasCategory)
+    {
+        const char *alterSql = "ALTER TABLE events ADD COLUMN category TEXT;";
+        if (sqlite3_exec(db_.get(), alterSql, nullptr, nullptr, &errMsg) != SQLITE_OK)
+        {
+            std::string msg = errMsg ? errMsg : "error adding category column";
+            if (!msg.empty() && msg.find("duplicate column name") == std::string::npos)
+            {
+                sqlite3_free(errMsg);
+                throw std::runtime_error(msg);
+            }
+            if (errMsg) sqlite3_free(errMsg);
+        }
+    }
+
+    if (!hasNotifier)
+    {
+        const char *alterSql = "ALTER TABLE events ADD COLUMN notifier TEXT;";
+        if (sqlite3_exec(db_.get(), alterSql, nullptr, nullptr, &errMsg) != SQLITE_OK)
+        {
+            std::string msg = errMsg ? errMsg : "error adding notifier column";
+            if (!msg.empty() && msg.find("duplicate column name") == std::string::npos)
+            {
+                sqlite3_free(errMsg);
+                throw std::runtime_error(msg);
+            }
+            if (errMsg) sqlite3_free(errMsg);
+        }
+    }
+
+    if (!hasAction)
+    {
+        const char *alterSql = "ALTER TABLE events ADD COLUMN action TEXT;";
+        if (sqlite3_exec(db_.get(), alterSql, nullptr, nullptr, &errMsg) != SQLITE_OK)
+        {
+            std::string msg = errMsg ? errMsg : "error adding action column";
+            if (!msg.empty() && msg.find("duplicate column name") == std::string::npos)
+            {
+                sqlite3_free(errMsg);
+                throw std::runtime_error(msg);
+            }
+            if (errMsg) sqlite3_free(errMsg);
+        }
+    }
+
+    if (!hasGoogleEventId)
+    {
+        const char *alterSql = "ALTER TABLE events ADD COLUMN google_event_id TEXT;";
+        if (sqlite3_exec(db_.get(), alterSql, nullptr, nullptr, &errMsg) != SQLITE_OK)
+        {
+            std::string msg = errMsg ? errMsg : "error adding google_event_id column";
+            if (!msg.empty() && msg.find("duplicate column name") == std::string::npos)
+            {
+                sqlite3_free(errMsg);
+                throw std::runtime_error(msg);
+            }
+            if (errMsg) sqlite3_free(errMsg);
+        }
+    }
+    if (!hasGoogleTaskId)
+    {
+        const char *alterSql = "ALTER TABLE events ADD COLUMN google_task_id TEXT;";
+        if (sqlite3_exec(db_.get(), alterSql, nullptr, nullptr, &errMsg) != SQLITE_OK)
+        {
+            std::string msg = errMsg ? errMsg : "error adding google_task_id column";
+            if (!msg.empty() && msg.find("duplicate column name") == std::string::npos)
+            {
+                sqlite3_free(errMsg);
+                throw std::runtime_error(msg);
+            }
+            if (errMsg) sqlite3_free(errMsg);
+        }
+    }
 }
 
 bool SQLiteScheduleDatabase::addEvent(const Event &e)
 {
     const char *sql =
-        "INSERT OR REPLACE INTO events (id, description, title, time, duration, recurrence) "
-        "VALUES (?,?,?,?,?,?);";
+        "INSERT OR REPLACE INTO events (id, description, title, time, duration, recurrence, category, notifier, action, google_event_id, google_task_id) "
+        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?);";
     sqlite3_stmt *stmt = nullptr;
     if (sqlite3_prepare_v2(db_.get(), sql, -1, &stmt, nullptr) != SQLITE_OK)
         return false;
@@ -107,6 +213,32 @@ bool SQLiteScheduleDatabase::addEvent(const Event &e)
     else
         sqlite3_bind_text(stmt, 6, recJson.c_str(), -1, SQLITE_TRANSIENT);
 
+    const std::string &cat = e.getCategory();
+    if (cat.empty())
+        sqlite3_bind_null(stmt, 7);
+    else
+        sqlite3_bind_text(stmt, 7, cat.c_str(), -1, SQLITE_TRANSIENT);
+
+    const std::string &notifier = e.getNotifierName();
+    if (notifier.empty())
+        sqlite3_bind_null(stmt, 8);
+    else
+        sqlite3_bind_text(stmt, 8, notifier.c_str(), -1, SQLITE_TRANSIENT);
+
+    const std::string &action = e.getActionName();
+    if (action.empty())
+        sqlite3_bind_null(stmt, 9);
+    else
+        sqlite3_bind_text(stmt, 9, action.c_str(), -1, SQLITE_TRANSIENT);
+
+    const std::string &gcalId = e.getProviderEventId();
+    if (gcalId.empty()) sqlite3_bind_null(stmt, 10);
+    else sqlite3_bind_text(stmt, 10, gcalId.c_str(), -1, SQLITE_TRANSIENT);
+
+    const std::string &gtaskId = e.getProviderTaskId();
+    if (gtaskId.empty()) sqlite3_bind_null(stmt, 11);
+    else sqlite3_bind_text(stmt, 11, gtaskId.c_str(), -1, SQLITE_TRANSIENT);
+
     bool ok = sqlite3_step(stmt) == SQLITE_DONE;
     sqlite3_finalize(stmt);
     return ok;
@@ -140,20 +272,29 @@ bool SQLiteScheduleDatabase::removeAllEvents()
 std::vector<std::unique_ptr<Event>> SQLiteScheduleDatabase::getAllEvents() const
 {
     const char *sql =
-        "SELECT id, description, title, time, duration, recurrence FROM events ORDER BY time;";
+        "SELECT id, description, title, time, duration, recurrence, category, notifier, action, google_event_id, google_task_id FROM events ORDER BY time;";
     sqlite3_stmt *stmt = nullptr;
     if (sqlite3_prepare_v2(db_.get(), sql, -1, &stmt, nullptr) != SQLITE_OK)
         return {};
 
     std::vector<std::unique_ptr<Event>> result;
+    auto safeText = [](sqlite3_stmt* s, int col)->std::string {
+        const unsigned char *t = sqlite3_column_text(s, col);
+        return t ? reinterpret_cast<const char *>(t) : std::string();
+    };
     while (sqlite3_step(stmt) == SQLITE_ROW)
     {
-        std::string id = reinterpret_cast<const char *>(sqlite3_column_text(stmt, 0));
-        std::string desc = reinterpret_cast<const char *>(sqlite3_column_text(stmt, 1));
-        std::string title = reinterpret_cast<const char *>(sqlite3_column_text(stmt, 2));
+        std::string id = safeText(stmt, 0);
+        std::string desc = safeText(stmt, 1);
+        std::string title = safeText(stmt, 2);
         long long timeSec = sqlite3_column_int64(stmt, 3);
         long long durSec = sqlite3_column_int64(stmt, 4);
         const unsigned char *recText = sqlite3_column_text(stmt, 5);
+        std::string category = safeText(stmt, 6);
+        std::string notifier = safeText(stmt, 7);
+        std::string action = safeText(stmt, 8);
+        std::string provEvent = safeText(stmt, 9);
+        std::string provTask = safeText(stmt, 10);
         auto tp = std::chrono::system_clock::time_point(std::chrono::seconds(timeSec));
         auto dur = std::chrono::seconds(durSec);
 
@@ -203,7 +344,11 @@ std::vector<std::unique_ptr<Event>> SQLiteScheduleDatabase::getAllEvents() const
 
                 if (pat)
                 {
-                    auto ev = std::make_unique<RecurringEvent>(id, desc, title, tp, dur, pat);
+                    auto ev = std::make_unique<RecurringEvent>(id, desc, title, tp, dur, pat, category);
+                    if (!notifier.empty()) ev->setNotifierName(notifier);
+                    if (!action.empty()) ev->setActionName(action);
+                    if (!provEvent.empty()) ev->setProviderEventId(provEvent);
+                    if (!provTask.empty()) ev->setProviderTaskId(provTask);
                     result.push_back(std::move(ev));
                     continue;
                 }
@@ -213,7 +358,11 @@ std::vector<std::unique_ptr<Event>> SQLiteScheduleDatabase::getAllEvents() const
                 // fall back to one-time event
             }
         }
-        auto ev = std::make_unique<OneTimeEvent>(id, desc, title, tp, dur);
+        auto ev = std::make_unique<OneTimeEvent>(id, desc, title, tp, dur, category);
+        if (!notifier.empty()) ev->setNotifierName(notifier);
+        if (!action.empty()) ev->setActionName(action);
+        if (!provEvent.empty()) ev->setProviderEventId(provEvent);
+        if (!provTask.empty()) ev->setProviderTaskId(provTask);
         result.push_back(std::move(ev));
     }
     sqlite3_finalize(stmt);

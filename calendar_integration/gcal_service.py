@@ -7,6 +7,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 import pickle
+import json
 
 # If modifying these scopes, delete the file token.pickle.
 SCOPES = [
@@ -108,12 +109,12 @@ def main():
                 event["recurrence"] = [recurrence]
 
             # Create the event
-            created_event = (
-                cal_service.events().insert(calendarId=calendar_id, body=event).execute()
-            )
-
-            print(f"Event created: {created_event.get('htmlLink')}")
-            print(f"Event ID: {created_event['id']}")
+            created_event = cal_service.events().insert(calendarId=calendar_id, body=event).execute()
+            print("GCAL_JSON: " + json.dumps({
+                "status": "ok",
+                "event_id": created_event.get('id'),
+                "link": created_event.get('htmlLink'),
+            }))
 
         elif action == "update":
             event_id = os.environ.get("GCAL_EVENT_ID")
@@ -154,15 +155,12 @@ def main():
                 }
 
             # Update the event
-            updated_event = (
-                cal_service.events()
-                .update(
-                    calendarId=calendar_id, eventId=gcal_event_id, body=existing_event
-                )
-                .execute()
-            )
-
-            print(f"Event updated: {updated_event.get('htmlLink')}")
+            updated_event = cal_service.events().update(calendarId=calendar_id, eventId=gcal_event_id, body=existing_event).execute()
+            print("GCAL_JSON: " + json.dumps({
+                "status": "ok",
+                "event_id": updated_event.get('id'),
+                "link": updated_event.get('htmlLink'),
+            }))
 
         elif action == "delete":
             event_id = os.environ.get("GCAL_EVENT_ID")
@@ -173,12 +171,55 @@ def main():
             # Google Calendar IDs have specific format
             gcal_event_id = event_id.replace("-", "").lower()[:64]
 
-            # Delete the event
-            cal_service.events().delete(
-                calendarId=calendar_id, eventId=gcal_event_id
-            ).execute()
-
-            print(f"Event deleted: {event_id}")
+            try:
+                # Delete the event by ID first
+                cal_service.events().delete(calendarId=calendar_id, eventId=gcal_event_id).execute()
+                print("GCAL_JSON: " + json.dumps({
+                    "status": "ok",
+                    "deleted_event_id": gcal_event_id,
+                }))
+            except Exception as e:
+                # Fallback: try to find the event by title and start time
+                title = os.environ.get("GCAL_TITLE")
+                start_str = os.environ.get("GCAL_START")
+                tz = os.environ.get("GCAL_TZ", "UTC")
+                print(f"Primary delete failed for {gcal_event_id}: {e}. Attempting fallback search…")
+                if title and start_str:
+                    try:
+                        # Narrow time window around provided start
+                        from datetime import datetime, timedelta, timezone
+                        # Parse RFC3339 Zulu time
+                        start_dt = datetime.strptime(start_str, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+                        time_min = (start_dt - timedelta(minutes=5)).isoformat().replace("+00:00", "Z")
+                        time_max = (start_dt + timedelta(minutes=5)).isoformat().replace("+00:00", "Z")
+                        events_result = cal_service.events().list(
+                            calendarId=calendar_id,
+                            timeMin=time_min,
+                            timeMax=time_max,
+                            q=title,
+                            singleEvents=False
+                        ).execute()
+                        items = events_result.get('items', [])
+                        # Delete first matching event
+                        deleted = False
+                        for ev in items:
+                            if ev.get('summary') == title:
+                                cal_service.events().delete(calendarId=calendar_id, eventId=ev['id']).execute()
+                                print("GCAL_JSON: " + json.dumps({
+                                    "status": "ok",
+                                    "deleted_event_id": ev['id'],
+                                }))
+                                deleted = True
+                                break
+                        if not deleted:
+                            print("Fallback delete: no matching event found", file=sys.stderr)
+                            sys.exit(1)
+                    except Exception as e2:
+                        print(f"Fallback delete failed: {type(e2).__name__}: {e2}", file=sys.stderr)
+                        sys.exit(1)
+                else:
+                    print("Fallback delete unavailable (missing GCAL_TITLE/GCAL_START)", file=sys.stderr)
+                    sys.exit(1)
 
         elif action == "add_task":
             task = {
@@ -193,7 +234,10 @@ def main():
                 task["due"] = due
             tasklist = os.environ.get("GCAL_TASKLIST_ID", "@default")
             created = tasks_service.tasks().insert(tasklist=tasklist, body=task).execute()
-            print(f"Task created: {created.get('id')}")
+            print("GCAL_JSON: " + json.dumps({
+                "status": "ok",
+                "task_id": created.get('id'),
+            }))
 
         elif action == "delete_task":
             task_id = os.environ.get("GCAL_TASK_ID")
@@ -202,7 +246,10 @@ def main():
                 sys.exit(1)
             tasklist = os.environ.get("GCAL_TASKLIST_ID", "@default")
             tasks_service.tasks().delete(tasklist=tasklist, task=task_id).execute()
-            print(f"Task deleted: {task_id}")
+            print("GCAL_JSON: " + json.dumps({
+                "status": "ok",
+                "deleted_task_id": task_id,
+            }))
 
         elif action == "update_task":
             task_id = os.environ.get("GCAL_TASK_ID")
@@ -218,16 +265,22 @@ def main():
             if "GCAL_DUE" in os.environ:
                 task["due"] = os.environ["GCAL_DUE"]
             updated = tasks_service.tasks().update(tasklist=tasklist, task=task_id, body=task).execute()
-            print(f"Task updated: {updated.get('id')}")
+            print("GCAL_JSON: " + json.dumps({
+                "status": "ok",
+                "task_id": updated.get('id'),
+            }))
 
         else:
             print(f"Error: Unknown action: {action}", file=sys.stderr)
             sys.exit(1)
 
     except Exception as e:
-        print(f"Error: {type(e).__name__}: {e}", file=sys.stderr)
+        print("GCAL_JSON: " + json.dumps({
+            "status": "error",
+            "type": type(e).__name__,
+            "message": str(e)
+        }))
         import traceback
-
         traceback.print_exc()
         sys.exit(1)
 

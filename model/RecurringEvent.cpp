@@ -17,7 +17,7 @@ RecurringEvent::RecurringEvent(const std::string &id,
 
 std::unique_ptr<Event> RecurringEvent::clone() const
 {
-    return std::make_unique<RecurringEvent>(
+    auto ptr = std::make_unique<RecurringEvent>(
         getId(),
         getDescription(),
         getTitle(),
@@ -25,6 +25,11 @@ std::unique_ptr<Event> RecurringEvent::clone() const
         getDuration(),
         recurrencePattern, // Share the recurrence pattern
         getCategory());
+    ptr->setNotifierName(getNotifierName());
+    ptr->setActionName(getActionName());
+    ptr->setProviderEventId(getProviderEventId());
+    ptr->setProviderTaskId(getProviderTaskId());
+    return ptr;
 }
 
 bool RecurringEvent::isDueOn(std::chrono::system_clock::time_point date) const

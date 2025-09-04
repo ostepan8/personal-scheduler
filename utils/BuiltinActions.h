@@ -242,4 +242,34 @@ public:
         ActionRegistry::registerAction("lights_orange", &BuiltinActions::lightsOrange);
         ActionRegistry::registerAction("lights_pink", &BuiltinActions::lightsPink);
     }
+
+    // Minimal HTTP JSON POST helper (for wake calls etc.)
+    static void httpPostJson(const std::string &url, const std::string &payload,
+                             long connect_timeout_sec = 3, long total_timeout_sec = 5)
+    {
+        CURL *curl = curl_easy_init();
+        if (!curl)
+        {
+            std::cerr << "Failed to init curl\n";
+            return;
+        }
+        std::string response;
+        struct curl_slist *headers = nullptr;
+        headers = curl_slist_append(headers, "Content-Type: application/json");
+        curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+        curl_easy_setopt(curl, CURLOPT_POST, 1L);
+        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, payload.c_str());
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writeCallback);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
+        curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, connect_timeout_sec);
+        curl_easy_setopt(curl, CURLOPT_TIMEOUT, total_timeout_sec);
+        CURLcode res = curl_easy_perform(curl);
+        if (res != CURLE_OK)
+        {
+            std::cerr << "httpPostJson failed: " << curl_easy_strerror(res) << "\n";
+        }
+        curl_slist_free_all(headers);
+        curl_easy_cleanup(curl);
+    }
 };

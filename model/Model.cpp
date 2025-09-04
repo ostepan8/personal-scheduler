@@ -10,6 +10,8 @@
 #include <regex>
 #include <vector>
 #include <string>
+#include <iostream>
+#include <cstdlib>
 
 // Helper utilities for fuzzy searching
 namespace
@@ -87,6 +89,11 @@ Model::Model(IScheduleDatabase *db, int preloadDaysAhead)
         {
             if (preloadDaysAhead >= 0 && e->getTime() > preloadEnd_)
                 continue;
+            // Track categories for loaded events
+            if (!e->getCategory().empty())
+            {
+                categories_.insert(e->getCategory());
+            }
             events.emplace(e->getTime(), std::move(e));
         }
     }
@@ -106,6 +113,10 @@ Model::getEvents(int maxOccurrences,
     std::lock_guard<std::mutex> lock(mutex_);
     result.reserve(events.size());
 
+    if (getenv("DEBUG_MVC")) {
+        std::cout << "[debug] getEvents: size=" << events.size() << " endDate=" << std::chrono::duration_cast<std::chrono::seconds>(endDate.time_since_epoch()).count() << "\n";
+    }
+
     for (const auto &kv : events)
     {
         const Event &e = *kv.second;
@@ -113,11 +124,17 @@ Model::getEvents(int maxOccurrences,
         {
             break;
         }
+        if (getenv("DEBUG_MVC")) {
+            std::cout << "[debug] push id=" << e.getId() << " time=" << std::chrono::duration_cast<std::chrono::seconds>(e.getTime().time_since_epoch()).count() << "\n";
+        }
         result.push_back(e);
         if (maxOccurrences > 0 && static_cast<int>(result.size()) >= maxOccurrences)
         {
             break;
         }
+    }
+    if (getenv("DEBUG_MVC")) {
+        std::cout << "[debug] getEvents: returning " << result.size() << " events\n";
     }
     return result;
 }
@@ -205,18 +222,27 @@ bool Model::addEvent(const Event &e)
         apisCopy = apis_;
     }
 
-    // Notify all calendar APIs
+    // Notify all calendar APIs and capture provider IDs
+    ProviderIds collected;
     for (auto &api : apisCopy)
     {
         try
         {
-            api->addEvent(e);
+            auto ids = api->addEvent(e);
+            if (!ids.eventId.empty()) collected.eventId = ids.eventId;
+            if (!ids.taskId.empty()) collected.taskId = ids.taskId;
         }
         catch (const std::exception &ex)
         {
             // Log error but don't fail the entire operation
-            // You might want to add proper logging here
         }
+    }
+    if (!collected.eventId.empty() || !collected.taskId.empty())
+    {
+        std::unordered_map<std::string, std::string> fields;
+        if (!collected.eventId.empty()) fields["provider_event_id"] = collected.eventId;
+        if (!collected.taskId.empty()) fields["provider_task_id"] = collected.taskId;
+        updateEventFields(e.getId(), fields);
     }
     return true;
 }
@@ -669,6 +695,57 @@ std::vector<Event> Model::getEventsInRange(
     return results;
 }
 
+std::vector<Event> Model::getEventsInRangeExpanded(
+    std::chrono::system_clock::time_point start,
+    std::chrono::system_clock::time_point end,
+    int maxOccurrencesPerSeries) const
+{
+    std::vector<Event> results;
+
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    // Iterate all events that could affect the window. Use lower_bound(start)
+    // so we don't consider events strictly before the start unless recurring.
+    // For recurring events that begin before start, we still need occurrences
+    // within [start, end), so we just walk the whole container.
+    for (const auto &kv : events)
+    {
+        const Event &e = *kv.second;
+        if (!e.isRecurring())
+        {
+            if (e.getTime() >= start && e.getTime() < end)
+            {
+                results.push_back(e);
+            }
+        }
+        else
+        {
+            const auto *re = dynamic_cast<const RecurringEvent *>(kv.second.get());
+            if (!re)
+                continue;
+
+            // Generate occurrences starting just before 'start'
+            auto times = re->getNextNOccurrences(start - std::chrono::seconds(1), maxOccurrencesPerSeries);
+            for (auto t : times)
+            {
+                if (t >= end)
+                    break;
+                if (t >= start)
+                {
+                    RecurringEvent occ(re->getId(), re->getDescription(), re->getTitle(),
+                                       t, re->getDuration(), re->getRecurrencePattern(),
+                                       re->getCategory());
+                    results.push_back(occ);
+                }
+            }
+        }
+    }
+
+    std::sort(results.begin(), results.end(),
+              [](const Event &a, const Event &b) { return a.getTime() < b.getTime(); });
+    return results;
+}
+
 std::vector<Event> Model::getEventsByDuration(int minMinutes, int maxMinutes) const
 {
     std::vector<Event> results;
@@ -843,7 +920,7 @@ EventStats Model::getEventStats(
     std::map<std::chrono::system_clock::time_point, int> eventsByDay;
     std::map<int, int> eventsByHour;
 
-    auto events = getEventsInRange(start, end);
+    auto events = getEventsInRangeExpanded(start, end);
 
     for (const auto &event : events)
     {
@@ -942,24 +1019,34 @@ bool Model::updateEvent(const std::string &id, const Event &updatedEvent)
         apisCopy = apis_;
     }
 
-    // Notify APIs using delete + add approach
+    // Notify APIs and collect provider IDs
+    ProviderIds collectedIds;
     for (auto &api : apisCopy)
     {
         try
         {
-            api->updateEvent(*oldEvent, updatedEvent);
+            auto ids = api->updateEvent(*oldEvent, updatedEvent);
+            if (!ids.eventId.empty()) collectedIds.eventId = ids.eventId;
+            if (!ids.taskId.empty()) collectedIds.taskId = ids.taskId;
         }
         catch (const std::exception &ex)
         {
             // Log error but don't fail the entire operation
         }
     }
+    if (!collectedIds.eventId.empty() || !collectedIds.taskId.empty())
+    {
+        std::unordered_map<std::string, std::string> f;
+        if (!collectedIds.eventId.empty()) f["provider_event_id"] = collectedIds.eventId;
+        if (!collectedIds.taskId.empty()) f["provider_task_id"] = collectedIds.taskId;
+        updateEventFields(id, f);
+    }
 
     return true;
 }
 
 bool Model::updateEventFields(const std::string &id,
-                              const std::unordered_map<std::string, std::string> &fields)
+                             const std::unordered_map<std::string, std::string> &fields)
 {
     std::unique_ptr<Event> oldEventCopy;
     std::vector<std::shared_ptr<CalendarApi>> apisCopy;
@@ -990,6 +1077,14 @@ bool Model::updateEventFields(const std::string &id,
                     event->setCategory(fields.at("category"));
                     categories_.insert(fields.at("category"));
                 }
+                if (fields.count("provider_event_id"))
+                {
+                    event->setProviderEventId(fields.at("provider_event_id"));
+                }
+                if (fields.count("provider_task_id"))
+                {
+                    event->setProviderTaskId(fields.at("provider_task_id"));
+                }
 
                 // Update database
                 if (db_)
@@ -1003,6 +1098,18 @@ bool Model::updateEventFields(const std::string &id,
             }
         }
     }
+
+    // Skip provider updates if we only updated provider IDs (avoid recursion)
+    bool providerOnly = true;
+    for (const auto &kv : fields)
+    {
+        if (kv.first != "provider_event_id" && kv.first != "provider_task_id")
+        {
+            providerOnly = false; break;
+        }
+    }
+
+    if (providerOnly) return true;
 
     // Notify APIs
     if (eventToUpdate && oldEventCopy)

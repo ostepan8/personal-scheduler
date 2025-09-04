@@ -10,6 +10,7 @@
 #include "../model/recurrence/WeeklyRecurrence.h"
 #include "../model/recurrence/YearlyRecurrence.h"
 #include "../model/RecurringEvent.h"
+#include "nlohmann/json.hpp"
 
 // Implementation of GoogleCalendarApi methods
 
@@ -54,7 +55,7 @@ std::string GoogleCalendarApi::formatDateTime(std::chrono::system_clock::time_po
     return oss.str();
 }
 
-bool GoogleCalendarApi::executePythonScript(const std::map<std::string, std::string> &env_vars) const
+bool GoogleCalendarApi::executePythonScript(const std::map<std::string, std::string> &env_vars, std::string *outStr) const
 {
     // Helper that escapes values for use in a shell command. We use single
     // quotes to avoid interpretation of special characters and escape
@@ -114,11 +115,12 @@ bool GoogleCalendarApi::executePythonScript(const std::map<std::string, std::str
     int status = pclose(pipe.release());
     int return_code = WEXITSTATUS(status);
 
-    // Print the output
+    // Print the output and optionally return it
     if (!result.empty())
     {
         std::cout << "Python script output:" << std::endl;
         std::cout << result << std::endl;
+        if (outStr) *outStr = result;
     }
 
     if (return_code != 0)
@@ -236,11 +238,15 @@ bool GoogleCalendarApi::isTask(const Event &event) const
 {
     auto cat = event.getCategory();
     std::transform(cat.begin(), cat.end(), cat.begin(), ::tolower);
+    // Skip internal tasks (e.g., wake or maintenance) and only sync real tasks
+    if (cat == "internal") return false;
+    if (event.getId().rfind("wake:", 0) == 0) return false;
     return cat == "task" || event.getDuration() == std::chrono::seconds(0);
 }
 
-void GoogleCalendarApi::addEvent(const Event &event)
+ProviderIds GoogleCalendarApi::addEvent(const Event &event)
 {
+    ProviderIds ids;
     std::cout << "\n=== GoogleCalendarApi::addEvent ===" << std::endl;
     std::cout << "Adding event: " << event.getTitle() << std::endl;
 
@@ -279,14 +285,38 @@ void GoogleCalendarApi::addEvent(const Event &event)
         env_vars["GCAL_RECURRENCE"] = convertRecurrence(event);
     }
 
-    if (!executePythonScript(env_vars))
+    std::string output;
+    if (!executePythonScript(env_vars, &output))
     {
         throw std::runtime_error("Failed to add event to Google Calendar");
     }
+    // Prefer machine-readable JSON lines emitted as GCAL_JSON: {...}
+    try {
+        std::istringstream iss(output);
+        std::string line;
+        nlohmann::json last;
+        while (std::getline(iss, line)) {
+            auto pos = line.find("GCAL_JSON:");
+            if (pos != std::string::npos) {
+                std::string jsonPart = line.substr(pos + std::string("GCAL_JSON:").size());
+                try { last = nlohmann::json::parse(jsonPart); } catch (...) {}
+            }
+        }
+        if (!last.is_null() && last.is_object()) {
+            if (last.value("status", "") == "ok") {
+                if (last.contains("event_id")) ids.eventId = last["event_id"].get<std::string>();
+                if (last.contains("task_id")) ids.taskId = last["task_id"].get<std::string>();
+            } else if (last.value("status", "") == "error") {
+                std::cerr << "Google addEvent error: " << last.dump() << "\n";
+            }
+        }
+    } catch (...) {}
+    return ids;
 }
 
-void GoogleCalendarApi::updateEvent(const Event &oldEvent, const Event &newEvent)
+ProviderIds GoogleCalendarApi::updateEvent(const Event &oldEvent, const Event &newEvent)
 {
+    ProviderIds ids;
     std::cout << "\n=== GoogleCalendarApi::updateEvent ===" << std::endl;
     std::cout << "Updating event: " << oldEvent.getTitle() << " -> " << newEvent.getTitle() << std::endl;
 
@@ -322,17 +352,38 @@ void GoogleCalendarApi::updateEvent(const Event &oldEvent, const Event &newEvent
                 {"GCAL_TZ", "UTC"}};
         }
 
-        if (!executePythonScript(env_vars))
+        std::string output;
+        if (!executePythonScript(env_vars, &output))
         {
             throw std::runtime_error("Failed to update event in Google Calendar");
         }
+        try {
+            std::istringstream iss(output);
+            std::string line; nlohmann::json last;
+            while (std::getline(iss, line)) {
+                auto pos = line.find("GCAL_JSON:");
+                if (pos != std::string::npos) {
+                    auto jsonPart = line.substr(pos + std::string("GCAL_JSON:").size());
+                    try { last = nlohmann::json::parse(jsonPart); } catch (...) {}
+                }
+            }
+            if (!last.is_null() && last.is_object()) {
+                if (last.value("status", "") == "error") {
+                std::cerr << "Google updateEvent error: " << last.dump() << "\n";
+                } else if (last.value("status", "") == "ok") {
+                    if (last.contains("event_id")) ids.eventId = last["event_id"].get<std::string>();
+                    if (last.contains("task_id")) ids.taskId = last["task_id"].get<std::string>();
+                }
+            }
+        } catch (...) {}
     }
     else
     {
         // Delete old and add new
         deleteEvent(oldEvent);
-        addEvent(newEvent);
+        ids = addEvent(newEvent);
     }
+    return ids;
 }
 
 void GoogleCalendarApi::deleteEvent(const Event &event)
@@ -347,13 +398,22 @@ void GoogleCalendarApi::deleteEvent(const Event &event)
     {
         env_vars["GCAL_ACTION"] = "delete_task";
         env_vars["GCAL_TASKLIST_ID"] = calendar_id_;
-        env_vars["GCAL_TASK_ID"] = event.getId();
+        // Prefer provider task ID if available
+        std::string taskId = event.getProviderTaskId().empty() ? event.getId() : event.getProviderTaskId();
+        env_vars["GCAL_TASK_ID"] = taskId;
     }
     else
     {
         env_vars["GCAL_ACTION"] = "delete";
         env_vars["GCAL_CALENDAR_ID"] = calendar_id_;
-        env_vars["GCAL_EVENT_ID"] = event.getId();
+        // Prefer provider event ID (exact Google ID), fallback to transformed local ID
+        std::string evId = event.getProviderEventId().empty() ? event.getId() : event.getProviderEventId();
+        env_vars["GCAL_EVENT_ID"] = evId;
+        // Provide helpful context for fallback deletion in the script
+        env_vars["GCAL_TITLE"] = event.getTitle();
+        env_vars["GCAL_START"] = formatDateTime(event.getTime());
+        env_vars["GCAL_END"] = formatDateTime(event.getTime() + event.getDuration());
+        env_vars["GCAL_TZ"] = "UTC";
     }
 
     if (!executePythonScript(env_vars))
