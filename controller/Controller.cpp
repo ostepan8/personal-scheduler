@@ -22,6 +22,11 @@
 #include "../utils/NotificationRegistry.h"
 #include "../utils/BuiltinNotifiers.h"
 #include <memory>
+#include "../database/SettingsStore.h"
+#include "../utils/CommandRegistry.h"
+#include "../utils/TimeUtils.h"
+#include "../utils/Logger.h"
+#include "nlohmann/json.hpp"
 
 using namespace std;
 using namespace std::chrono;
@@ -75,10 +80,10 @@ void Controller::run()
     BuiltinNotifiers::registerAll();
 
 
-    using Cmd = std::function<void()>;
-    std::unordered_map<std::string, Cmd> commands;
+    // Sophisticated CLI command registry: map command name -> function + description.
+    CommandRegistry::clear();
 
-    commands["add"] = [&]() {
+    CommandRegistry::registerCommand("add", [&]() {
         string id = model_.generateUniqueId();
         cout << "Enter title: ";
         string title; getline(cin, title);
@@ -92,9 +97,9 @@ void Controller::run()
         model_.addEvent(e);
         scheduleTask(e);
         cout << "Added event [" << id << "]\n";
-    };
+    }, "Add one-time event in N hours");
 
-    commands["addat"] = [&]() {
+    CommandRegistry::registerCommand("addat", [&]() {
         string id = model_.generateUniqueId();
         cout << "Enter title: ";
         string title; getline(cin, title);
@@ -109,9 +114,9 @@ void Controller::run()
         model_.addEvent(e);
         scheduleTask(e);
         cout << "Added event [" << id << "]\n";
-    };
+    }, "Add one-time event at timestamp");
 
-    commands["addrec"] = [&]() {
+    CommandRegistry::registerCommand("addrec", [&]() {
         string title, desc, timestr, rtype;
         cout << "Enter title: "; getline(cin, title);
         cout << "Enter description: "; getline(cin, desc);
@@ -145,9 +150,9 @@ void Controller::run()
         }
         string id = addRecurringEvent(title, desc, start, std::chrono::minutes(durMin), pat);
         cout << "Added recurring event [" << id << "]\n";
-    };
+    }, "Add a recurring event");
 
-    commands["addtask"] = [&]() {
+    CommandRegistry::registerCommand("addtask", [&]() {
         if (!loop_) { std::cout << "(event loop not running)\n"; return; }
         string title, desc, timestr, notifierName, actionName;
         cout << "Enter title: "; getline(cin, title);
@@ -207,107 +212,257 @@ void Controller::run()
         e.setActionName(actionName);
         scheduleTask(e, leadTimes, notifyCb, act);
         cout << "Added task [" << id << "]\n";
-    };
+    }, "Add a scheduled task with notifier+action");
 
-    commands["remove"] = [&]() {
+    CommandRegistry::registerCommand("remove", [&]() {
         cout << "Enter event ID to remove: ";
         string id; getline(cin, id);
         if (model_.removeEvent(id))
             cout << "Removed event [" << id << "]\n";
         else
             cout << "No event with ID [" << id << "] found.\n";
-    };
+    }, "Remove event by ID");
 
-    commands["removeday"] = [&]() {
+    CommandRegistry::registerCommand("removeday", [&]() {
         cout << "Enter date (YYYY-MM-DD): ";
         string d; getline(cin, d);
         system_clock::time_point day;
         try { day = TimeUtils::parseDate(d); } catch(const exception &e) { cout << e.what() << "\n"; return; }
         int n = model_.removeEventsOnDay(day);
         cout << "Removed " << n << " events.\n";
-    };
+    }, "Remove all events on a day");
 
-    commands["removeweek"] = [&]() {
+    CommandRegistry::registerCommand("removeweek", [&]() {
         cout << "Enter date within week (YYYY-MM-DD): ";
         string d; getline(cin, d);
         system_clock::time_point day;
         try { day = TimeUtils::parseDate(d); } catch(const exception &e) { cout << e.what() << "\n"; return; }
         int n = model_.removeEventsInWeek(day);
         cout << "Removed " << n << " events.\n";
-    };
+    }, "Remove all events in the week containing date");
 
-    commands["removebefore"] = [&]() {
+    CommandRegistry::registerCommand("removebefore", [&]() {
         cout << "Enter time (YYYY-MM-DD HH:MM): ";
         string ts; getline(cin, ts);
         system_clock::time_point tp;
         try { tp = TimeUtils::parseTimePoint(ts); } catch(const exception &e) { cout << e.what() << "\n"; return; }
         int n = model_.removeEventsBefore(tp);
         cout << "Removed " << n << " events.\n";
-    };
+    }, "Remove all events before a time");
 
-    commands["clear"] = [&]() {
+    CommandRegistry::registerCommand("clear", [&]() {
         removeAllEvents();
         cout << "All events removed.\n";
-    };
+    }, "Clear all events");
 
-    commands["list"] = [&]() { view_.render(); };
-    commands["next"] = [&]() { printNextEvent(); };
+    CommandRegistry::registerCommand("list", [&]() { view_.render(); }, "List all events (seeds)");
+    CommandRegistry::registerCommand("next", [&]() { printNextEvent(); }, "Show next event");
 
-    commands["day"] = [&]() {
+    CommandRegistry::registerCommand("day", [&]() {
         cout << "Enter date (YYYY-MM-DD): ";
         string d; getline(cin, d);
         system_clock::time_point day;
         try { day = TimeUtils::parseDate(d); } catch(const exception &e) { cout << e.what() << "\n"; return; }
         auto evs = model_.getEventsOnDay(day);
         view_.renderEvents(evs);
-    };
+    }, "List events on a day");
 
-    commands["week"] = [&]() {
+    CommandRegistry::registerCommand("week", [&]() {
         cout << "Enter date within week (YYYY-MM-DD): ";
         string d; getline(cin, d);
         system_clock::time_point day;
         try { day = TimeUtils::parseDate(d); } catch(const exception &e) { cout << e.what() << "\n"; return; }
         auto evs = model_.getEventsInWeek(day);
         view_.renderEvents(evs);
-    };
+    }, "List events in a week");
 
-    commands["month"] = [&]() {
+    CommandRegistry::registerCommand("month", [&]() {
         cout << "Enter month (YYYY-MM): ";
         string m; getline(cin, m);
         system_clock::time_point mo;
         try { mo = TimeUtils::parseMonth(m); } catch(const exception &e) { cout << e.what() << "\n"; return; }
         auto evs = model_.getEventsInMonth(mo);
         view_.renderEvents(evs);
-    };
+    }, "List events in a month");
 
-    commands["nextn"] = [&]() {
+    CommandRegistry::registerCommand("nextn", [&]() {
         cout << "Enter number of events: ";
         int n; cin >> n; cin.ignore(numeric_limits<streamsize>::max(), '\n');
         auto evs = model_.getNextNEvents(n);
         view_.renderEvents(evs);
-    };
+    }, "List next N events");
+
+    // Preview wake-up time for a day (default today)
+    CommandRegistry::registerCommand("wake", [&]() {
+        using namespace std::chrono;
+        cout << "Enter date (YYYY-MM-DD) or leave blank for today: ";
+        string d; getline(cin, d);
+        system_clock::time_point day;
+        try {
+            if (d.empty()) {
+                day = TimeUtils::parseDate(TimeUtils::formatTimePoint(system_clock::now()).substr(0,10));
+            } else {
+                day = TimeUtils::parseDate(d);
+            }
+        } catch(const exception &e) { cout << e.what() << "\n"; return; }
+
+        SettingsStore settings("events.db");
+        string baselineStr = settings.getString("wake.baseline_time").value_or("14:00");
+        int lead = settings.getInt("wake.lead_minutes").value_or(45);
+        bool onlyWhen = settings.getBool("wake.only_when_events").value_or(false);
+        bool skipWeekends = settings.getBool("wake.skip_weekends").value_or(false);
+
+        // Compute baseline time on the given day
+        auto base = [&](){
+            int hh = 2, mm = 0;
+            if (!baselineStr.empty()) {
+                std::sscanf(baselineStr.c_str(), "%d:%d", &hh, &mm);
+            }
+            time_t t = system_clock::to_time_t(day);
+            std::tm tm_buf{};
+#if defined(_MSC_VER)
+            localtime_s(&tm_buf, &t);
+#else
+            localtime_r(&t, &tm_buf);
+#endif
+            tm_buf.tm_hour = hh; tm_buf.tm_min = mm; tm_buf.tm_sec = 0;
+            return system_clock::from_time_t(mktime(&tm_buf));
+        }();
+
+        auto events = model_.getEventsOnDay(day);
+        if (events.empty()) {
+            if (onlyWhen) { cout << "Wake: skipped (no events)\n"; return; }
+            if (skipWeekends) {
+                time_t t = system_clock::to_time_t(day);
+                std::tm tm_buf{};
+#if defined(_MSC_VER)
+                localtime_s(&tm_buf, &t);
+#else
+                localtime_r(&t, &tm_buf);
+#endif
+                if (tm_buf.tm_wday == 0 || tm_buf.tm_wday == 6) { cout << "Wake: skipped (weekend)\n"; return; }
+            }
+            cout << "Wake: " << TimeUtils::formatTimePoint(base) << " (baseline)\n";
+            return;
+        }
+        auto earliest = std::min_element(events.begin(), events.end(), [](const Event &a, const Event &b){ return a.getTime() < b.getTime(); })->getTime();
+        auto candidate = earliest - minutes(lead);
+        auto chosen = base;
+        string reason = "baseline";
+        if (onlyWhen || earliest < base) { chosen = candidate; reason = "earliest-minus-lead"; }
+        cout << "Wake: " << TimeUtils::formatTimePoint(chosen) << " (" << reason << ")\n";
+    }, "Preview wake-up time for a day");
+
+    // Configure wake settings interactively
+    CommandRegistry::registerCommand("wakeconfig", [&]() {
+        SettingsStore settings("events.db");
+        string baseline = settings.getString("wake.baseline_time").value_or("09:00");
+        int lead = settings.getInt("wake.lead_minutes").value_or(45);
+        bool onlyWhen = settings.getBool("wake.only_when_events").value_or(false);
+        bool skipWeekends = settings.getBool("wake.skip_weekends").value_or(false);
+        cout << "Current wake config:\n";
+        cout << "  baseline_time: " << baseline << "\n";
+        cout << "  lead_minutes: " << lead << "\n";
+        cout << "  only_when_events: " << (onlyWhen?"true":"false") << "\n";
+        cout << "  skip_weekends: " << (skipWeekends?"true":"false") << "\n";
+        cout << "Enter new baseline_time (HH:MM) or blank to keep: ";
+        string in; getline(cin, in);
+        if (!in.empty()) settings.setString("wake.baseline_time", in);
+        cout << "Enter new lead_minutes or blank to keep: ";
+        string inLead; getline(cin, inLead);
+        if (!inLead.empty()) { try { settings.setInt("wake.lead_minutes", stoi(inLead)); } catch(...) { cout << "Invalid lead, keeping.\n"; } }
+        cout << "only_when_events (true/false) or blank to keep: ";
+        string inOnly; getline(cin, inOnly);
+        if (!inOnly.empty()) { for (auto &c: inOnly) c=tolower(c); settings.setBool("wake.only_when_events", (inOnly=="true"||inOnly=="1"||inOnly=="yes")); }
+        cout << "skip_weekends (true/false) or blank to keep: ";
+        string inSkip; getline(cin, inSkip);
+        if (!inSkip.empty()) { for (auto &c: inSkip) c=tolower(c); settings.setBool("wake.skip_weekends", (inSkip=="true"||inSkip=="1"||inSkip=="yes")); }
+        cout << "Updated wake settings.\n";
+    }, "Configure wake baseline/lead/weekend behavior");
+
+    // Send a fake GoodMorning request with an example event
+    CommandRegistry::registerCommand("wakeping", [&]() {
+        SettingsStore settings("events.db");
+        std::string url = settings.getString("wake.server_url").value_or("");
+        if (url.empty()) {
+            const char* envUrl = std::getenv("WAKE_SERVER_URL");
+            if (envUrl) url = envUrl;
+        }
+        if (url.empty()) {
+            cout << "WAKE_SERVER_URL not configured. Set it in .env or via wakeconfig.\n";
+            return;
+        }
+        std::string userId = settings.getString("user.id").value_or(std::getenv("USER_ID") ? std::getenv("USER_ID") : "user-123");
+        std::string tzName = settings.getString("user.timezone").value_or(std::getenv("USER_TIMEZONE") ? std::getenv("USER_TIMEZONE") : "America/New_York");
+        int lead = settings.getInt("wake.lead_minutes").value_or(45);
+        std::string baseline = settings.getString("wake.baseline_time").value_or("14:00");
+
+        using namespace std::chrono;
+        auto now = system_clock::now();
+        // Example earliest event tomorrow at 11:45
+        auto tomorrow = TimeUtils::parseDate(TimeUtils::formatTimePoint(now).substr(0,10)) + hours(24);
+        auto earliestStart = tomorrow + hours(11) + minutes(45);
+        // Example wake time at earliest - lead
+        auto wakeTime = earliestStart - minutes(lead);
+
+        nlohmann::json payload;
+        payload["user_id"] = userId;
+        payload["wake_time"] = TimeUtils::formatRFC3339Local(wakeTime);
+        payload["timezone"] = tzName;
+        nlohmann::json ctx;
+        ctx["source"] = "scheduler-cli";
+        ctx["reason"] = "earliest-minus-lead";
+        ctx["baseline_time"] = baseline;
+        ctx["lead_minutes"] = lead;
+        ctx["date"] = TimeUtils::formatTimePoint(tomorrow);
+        ctx["job_id"] = std::string("wake:") + TimeUtils::formatTimePoint(tomorrow).substr(0,10);
+        nlohmann::json earliest;
+        earliest["id"] = "sample-recurring";
+        earliest["title"] = "Robot Dynamics and Control";
+        earliest["description"] = "Example class";
+        earliest["start"] = TimeUtils::formatRFC3339Local(earliestStart);
+        earliest["duration_sec"] = 3600;
+        ctx["earliest_event"] = earliest;
+        ctx["first_events"] = nlohmann::json::array({
+            { {"id","sample-recurring"}, {"title","Robot Dynamics and Control"}, {"start", TimeUtils::formatRFC3339Local(earliestStart)} }
+        });
+        payload["context"] = ctx;
+
+        Logger::info("[wakeping] POST ", url);
+        BuiltinActions::httpPostJson(url, payload.dump());
+        cout << "Sent test GoodMorning request to " << url << "\n";
+    }, "Send a test GoodMorning request with an example event");
 
     bool done = false;
     string line;
-    cout << "Commands: add addat addrec addtask remove removeday removeweek removebefore clear list next day week month nextn quit\n";
+    cout << "Type 'help' to list commands. Type 'quit' to exit.\n";
     while (!done)
     {
         cout << "> ";
         if (!getline(cin, line)) break;
         istringstream iss(line); string cmd; iss >> cmd;
-        auto it = commands.find(cmd);
-        if (it != commands.end())
+        if (cmd == "help")
         {
-            it->second();
-            if (cmd == "quit") done = true; // handled below
+            auto list = CommandRegistry::available();
+            cout << "Commands (" << list.size() << "):\n";
+            for (const auto &p : list) {
+                cout << "  " << p.first;
+                if (!p.second.empty()) cout << " - " << p.second;
+                cout << "\n";
+            }
+            continue;
         }
-        else if (cmd == "quit")
+        if (cmd == "quit")
         {
             done = true;
         }
         else
         {
-            cout << "Unknown command.\n";
+            if (auto c = CommandRegistry::getCommand(cmd)) {
+                c->fn();
+            } else {
+                cout << "Unknown command. Type 'help'.\n";
+            }
         }
     }
 

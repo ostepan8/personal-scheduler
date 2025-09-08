@@ -4,6 +4,7 @@
 #include "database/SQLiteScheduleDatabase.h"
 #include "scheduler/EventLoop.h"
 #include "calendar/GoogleCalendarApi.h"
+#include "utils/EnvLoader.h"
 #include <vector>
 #include <memory>
 #include <iostream>
@@ -18,6 +19,8 @@
 
 int main()
 {
+    // Load environment variables from .env so WAKE_SERVER_URL and others are available
+    EnvLoader::load();
     std::cout << "[mvc] opening DB...\n";
     SQLiteScheduleDatabase db("events.db");
     std::cout << "[mvc] creating model...\n";
@@ -46,7 +49,6 @@ int main()
     std::cout << "[mvc] fetching events...\n";
     auto nowTs = std::chrono::system_clock::now();
     auto farFuture = nowTs + std::chrono::hours(24 * 365);
-    setenv("DEBUG_MVC", "1", 0);
     auto events = model.getEvents(-1, farFuture);
     std::cout << "[mvc] fetched events count=" << events.size() << "\n";
 
@@ -57,7 +59,7 @@ int main()
     // Wake scheduling (same as server)
     SettingsStore settings("events.db");
     const char *wakeUrl = getenv("WAKE_SERVER_URL");
-    if (wakeUrl && !settings.getString("wake.server_url")) settings.setString("wake.server_url", wakeUrl);
+    if (wakeUrl) settings.setString("wake.server_url", wakeUrl);
     WakeScheduler wake(model, loop, settings);
     // Start event loop now
     std::cout << "[mvc] starting event loop...\n";

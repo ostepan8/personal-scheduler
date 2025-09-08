@@ -1,11 +1,11 @@
 #pragma once
 #include <string>
 #include <algorithm>
-#include <iostream>
+#include "Logger.h"
 
 inline std::string sanitize(const std::string &in, size_t maxLen = 256)
 {
-    std::cout << "Sanitizing string of length " << in.size() << " with max length " << maxLen << std::endl;
+    Logger::debug("[sanitize] in.len=", in.size(), " max=", maxLen);
 
     std::string out;
     out.reserve(std::min(maxLen, in.size()));
@@ -14,17 +14,17 @@ inline std::string sanitize(const std::string &in, size_t maxLen = 256)
     {
         if (std::iscntrl(static_cast<unsigned char>(c)))
         {
-            std::cout << "Skipping control character: " << static_cast<int>(c) << std::endl;
+            Logger::debug("[sanitize] skip ctrl char=", (int)static_cast<unsigned char>(c));
             continue;
         }
         out.push_back(c);
         if (out.size() >= maxLen)
         {
-            std::cout << "Reached max length of " << maxLen << ", truncating" << std::endl;
+            Logger::debug("[sanitize] reached max, truncating at ", maxLen);
             break;
         }
     }
 
-    std::cout << "Sanitized result length: " << out.size() << std::endl;
+    Logger::debug("[sanitize] out.len=", out.size());
     return out;
 }

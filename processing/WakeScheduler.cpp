@@ -6,6 +6,7 @@
 #include <ctime>
 #include <algorithm>
 #include <sstream>
+#include "../utils/Logger.h"
 
 using namespace std;
 using namespace std::chrono;
@@ -58,16 +59,27 @@ system_clock::time_point WakeScheduler::nextLocalMidnight(system_clock::time_poi
 system_clock::time_point WakeScheduler::computeWakeTime(system_clock::time_point day,
                                                         std::string &reason,
                                                         std::vector<Event> &firstEvents) const {
+    Logger::debug("[wake] compute start day=", TimeUtils::formatTimePoint(day));
     // Load config
-    auto baselineStr = settings_.getString("wake.baseline_time").value_or("02:00");
+    // Default baseline is 14:00 (2 PM) unless overridden via settings
+    auto baselineStr = settings_.getString("wake.baseline_time").value_or("14:00");
     int lead = settings_.getInt("wake.lead_minutes").value_or(45);
     bool onlyWhenEvents = settings_.getBool("wake.only_when_events").value_or(false);
     bool skipWeekends = settings_.getBool("wake.skip_weekends").value_or(false);
+    Logger::debug("[wake] cfg baseline=", baselineStr, " lead=", lead, " onlyWhenEvents=", onlyWhenEvents, " skipWeekends=", skipWeekends);
 
     auto base = parseLocalTimeHM(day, baselineStr);
+    Logger::debug("[wake] base=", TimeUtils::formatTimePoint(base));
     // Collect first few events on day
     auto events = model_.getEventsOnDay(day);
+    Logger::debug("[wake] events on day=", events.size());
+    if (!events.empty()) {
+        Logger::debug("[wake] first raw event id=", events[0].getId(), " title.len=", events[0].getTitle().size(), " desc.len=", events[0].getDescription().size());
+    }
     std::sort(events.begin(), events.end(), [](const Event &a, const Event &b){ return a.getTime() < b.getTime(); });
+    if (!events.empty()) {
+        Logger::debug("[wake] earliest after sort id=", events[0].getId(), " time=", TimeUtils::formatTimePoint(events[0].getTime()));
+    }
     firstEvents.clear();
     for (size_t i = 0; i < events.size() && i < 3; ++i) firstEvents.push_back(events[i]);
 
@@ -100,7 +112,16 @@ system_clock::time_point WakeScheduler::computeWakeTime(system_clock::time_point
         reason = "earliest-minus-lead";
         return candidate;
     }
-    if (candidate < base) {
+    // Adjust only if the earliest event occurs before the baseline time
+    time_t t = system_clock::to_time_t(earliest);
+    std::tm tm_earliest{};
+#if defined(_MSC_VER)
+    localtime_s(&tm_earliest, &t);
+#else
+    localtime_r(&t, &tm_earliest);
+#endif
+    // Baseline comparison uses local day hours/mins; compare absolute instants for safety
+    if (earliest < base) {
         reason = "earliest-minus-lead";
         return candidate;
     }
@@ -109,46 +130,54 @@ system_clock::time_point WakeScheduler::computeWakeTime(system_clock::time_point
 }
 
 void WakeScheduler::scheduleToday() {
+    Logger::debug("[wake] scheduleToday enter");
     if (!settings_.getBool("wake.enabled").value_or(true)) return;
     auto now = system_clock::now();
     auto day = localMidnight(now);
     std::string reason;
     std::vector<Event> first;
     auto wakeTime = computeWakeTime(day, reason, first);
+    Logger::debug("[wake] computed reason=", reason, " wakeTime=", TimeUtils::formatTimePoint(wakeTime));
     if (wakeTime == system_clock::time_point::min()) return; // skip
     if (wakeTime <= now) return; // already passed
 
-    // Build action that posts to external server with context
+    // Build action that posts to external JARVIS/GoodMorning endpoint
     std::string url = settings_.getString("wake.server_url").value_or("");
-    auto action = [url, day, wakeTime, reason, first]() {
-        if (url.empty()) {
-            std::cout << "[wake] No server URL configured; skipping call\n";
-            return;
-        }
+    std::string userId = settings_.getString("user.id").value_or(std::getenv("USER_ID") ? std::getenv("USER_ID") : "unknown");
+    std::string tzName = settings_.getString("user.timezone").value_or(std::getenv("USER_TIMEZONE") ? std::getenv("USER_TIMEZONE") : "Local");
+    int lead = settings_.getInt("wake.lead_minutes").value_or(45);
+    std::string baselineStr = settings_.getString("wake.baseline_time").value_or("14:00");
+    auto action = [url, day, wakeTime, reason, first, userId, tzName, lead, baselineStr]() {
+        if (url.empty()) { Logger::warn("[wake] No WAKE_SERVER_URL; skipping call"); return; }
         nlohmann::json payload;
-        payload["date"] = TimeUtils::formatTimePoint(day);
-        payload["wake_time"] = TimeUtils::formatTimePoint(wakeTime);
-        payload["reason"] = reason;
-        nlohmann::json earliest = nullptr;
+        payload["user_id"] = userId;
+        payload["wake_time"] = TimeUtils::formatRFC3339Local(wakeTime);
+        payload["timezone"] = tzName;
+        nlohmann::json ctx;
+        ctx["source"] = "scheduler";
+        ctx["reason"] = reason;
+        ctx["baseline_time"] = baselineStr;
+        ctx["lead_minutes"] = lead;
+        ctx["date"] = TimeUtils::formatTimePoint(day);
+        ctx["job_id"] = std::string("wake:") + TimeUtils::formatTimePoint(day).substr(0,10);
         if (!first.empty()) {
-            earliest = {
-                {"id", first[0].getId()},
-                {"title", first[0].getTitle()},
-                {"description", first[0].getDescription()},
-                {"time", TimeUtils::formatTimePoint(first[0].getTime())},
-                {"duration", std::chrono::duration_cast<std::chrono::seconds>(first[0].getDuration()).count()}
-            };
+            nlohmann::json earliest;
+            earliest["id"] = first[0].getId();
+            earliest["title"] = first[0].getTitle();
+            earliest["description"] = first[0].getDescription();
+            earliest["start"] = TimeUtils::formatRFC3339Local(first[0].getTime());
+            earliest["duration_sec"] = std::chrono::duration_cast<std::chrono::seconds>(first[0].getDuration()).count();
+            ctx["earliest_event"] = earliest;
+        } else {
+            ctx["earliest_event"] = nullptr;
         }
-        payload["earliest_event"] = earliest;
         nlohmann::json brief = nlohmann::json::array();
         for (const auto &e : first) {
-            brief.push_back({
-                {"id", e.getId()},
-                {"title", e.getTitle()},
-                {"time", TimeUtils::formatTimePoint(e.getTime())}
-            });
+            brief.push_back({ {"id", e.getId()}, {"title", e.getTitle()}, {"start", TimeUtils::formatRFC3339Local(e.getTime())} });
         }
-        payload["first_events"] = brief;
+        ctx["first_events"] = brief;
+        payload["context"] = ctx;
+        Logger::info("[wake] POST ", url);
         BuiltinActions::httpPostJson(url, payload.dump());
     };
 
@@ -161,6 +190,7 @@ void WakeScheduler::scheduleToday() {
     auto task = std::make_shared<ScheduledTask>(id, "wake task", title, wakeTime, seconds(0),
                                                 std::vector<system_clock::time_point>{}, []{}, action);
     task->setCategory("internal");
+    Logger::debug("[wake] adding task");
     loop_.addTask(task);
 }
 
@@ -192,39 +222,48 @@ void WakeScheduler::scheduleForDate(system_clock::time_point day) {
     std::string id = std::string("wake:") + datebuf;
     std::string title = std::string("Wake for ") + datebuf;
 
-    std::string url = settings_.getString("wake.server_url").value_or("");
-    auto action = [url, day, wakeTime, reason, first]() {
-        if (url.empty()) return;
+    std::string url2 = settings_.getString("wake.server_url").value_or("");
+    std::string userId2 = settings_.getString("user.id").value_or(std::getenv("USER_ID") ? std::getenv("USER_ID") : "unknown");
+    std::string tzName2 = settings_.getString("user.timezone").value_or(std::getenv("USER_TIMEZONE") ? std::getenv("USER_TIMEZONE") : "Local");
+    int lead2 = settings_.getInt("wake.lead_minutes").value_or(45);
+    std::string baselineStr2 = settings_.getString("wake.baseline_time").value_or("14:00");
+    auto action = [url2, day, wakeTime, reason, first, userId2, tzName2, lead2, baselineStr2]() {
+        if (url2.empty()) return;
         nlohmann::json payload;
-        payload["date"] = TimeUtils::formatTimePoint(day);
-        payload["wake_time"] = TimeUtils::formatTimePoint(wakeTime);
-        payload["reason"] = reason;
-        nlohmann::json earliest = nullptr;
+        payload["user_id"] = userId2;
+        payload["wake_time"] = TimeUtils::formatRFC3339Local(wakeTime);
+        payload["timezone"] = tzName2;
+        nlohmann::json ctx;
+        ctx["source"] = "scheduler";
+        ctx["reason"] = reason;
+        ctx["baseline_time"] = baselineStr2;
+        ctx["lead_minutes"] = lead2;
+        ctx["date"] = TimeUtils::formatTimePoint(day);
+        ctx["job_id"] = std::string("wake:") + TimeUtils::formatTimePoint(day).substr(0,10);
         if (!first.empty()) {
-            earliest = {
-                {"id", first[0].getId()},
-                {"title", first[0].getTitle()},
-                {"description", first[0].getDescription()},
-                {"time", TimeUtils::formatTimePoint(first[0].getTime())},
-                {"duration", std::chrono::duration_cast<std::chrono::seconds>(first[0].getDuration()).count()}
-            };
+            nlohmann::json earliest;
+            earliest["id"] = first[0].getId();
+            earliest["title"] = first[0].getTitle();
+            earliest["description"] = first[0].getDescription();
+            earliest["start"] = TimeUtils::formatRFC3339Local(first[0].getTime());
+            earliest["duration_sec"] = std::chrono::duration_cast<std::chrono::seconds>(first[0].getDuration()).count();
+            ctx["earliest_event"] = earliest;
+        } else {
+            ctx["earliest_event"] = nullptr;
         }
-        payload["earliest_event"] = earliest;
         nlohmann::json brief = nlohmann::json::array();
         for (const auto &e : first) {
-            brief.push_back({
-                {"id", e.getId()},
-                {"title", e.getTitle()},
-                {"time", TimeUtils::formatTimePoint(e.getTime())}
-            });
+            brief.push_back({ {"id", e.getId()}, {"title", e.getTitle()}, {"start", TimeUtils::formatRFC3339Local(e.getTime())} });
         }
-        payload["first_events"] = brief;
-        BuiltinActions::httpPostJson(url, payload.dump());
+        ctx["first_events"] = brief;
+        payload["context"] = ctx;
+        BuiltinActions::httpPostJson(url2, payload.dump());
     };
 
     auto task = std::make_shared<ScheduledTask>(id, "wake task", title, wakeTime, seconds(0),
                                                 std::vector<system_clock::time_point>{}, []{}, action);
     task->setCategory("internal");
+    Logger::debug("[wake] adding task for date-specific");
     loop_.addTask(task);
 }
 

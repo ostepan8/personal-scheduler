@@ -31,9 +31,9 @@ int main()
 
     // Settings + wake-up scheduling
     SettingsStore settings("events.db");
-    // Default wake URL from env if not set
+    // Default wake URL from env (overwrite to ensure it's current)
     const char *wakeUrl = getenv("WAKE_SERVER_URL");
-    if (wakeUrl && !settings.getString("wake.server_url")) settings.setString("wake.server_url", wakeUrl);
+    if (wakeUrl) settings.setString("wake.server_url", wakeUrl);
     WakeScheduler wake(model, loop, settings);
     wake.scheduleToday();
     wake.scheduleDailyMaintenance();

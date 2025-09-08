@@ -1,6 +1,6 @@
 # Compiler and flags
 CXX       = g++
-CXXFLAGS  = -std=c++17 -Wall -Iapi -Iexternal/json -Ischeduler -MMD -MP
+CXXFLAGS  = -std=c++17 -Wall -pthread -Iapi -Iexternal/json -Ischeduler -MMD -MP
 
 # Libraries to link
 LIBS      = -lsqlite3 -pthread -lcurl
@@ -29,6 +29,7 @@ SRCS = main.cpp \
        processing/WakeScheduler.cpp \
        calendar/GoogleCalendarApi.cpp \
        utils/EnvLoader.cpp \
+       utils/Logger.cpp \
        security/Auth.cpp \
        security/RateLimiter.cpp
 

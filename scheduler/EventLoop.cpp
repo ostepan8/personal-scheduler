@@ -1,5 +1,6 @@
 #include "EventLoop.h"
 #include <algorithm>
+#include "../utils/Logger.h"
 
 EventLoop::EventLoop(Model &m) : model_(m) {}
 
@@ -10,7 +11,7 @@ void EventLoop::start()
     if (running_)
         return;
     running_ = true;
-    fprintf(stderr, "[eventloop] starting thread\n");
+    Logger::debug("[eventloop] starting thread");
     worker_ = std::thread(&EventLoop::threadFunc, this);
 }
 
@@ -31,6 +32,7 @@ void EventLoop::addTask(const std::shared_ptr<ScheduledTask> &task)
 {
     {
         std::lock_guard<std::mutex> lock(mtx_);
+        Logger::debug("[eventloop] addTask id=", task->getId(), " cat=", task->getCategory());
         // For internal tasks (e.g., wake) do not persist to model/DB or sync to providers
         if (task->getCategory() != "internal") {
             // Upsert into model: add or update existing event by ID
@@ -45,16 +47,16 @@ void EventLoop::addTask(const std::shared_ptr<ScheduledTask> &task)
 
 void EventLoop::threadFunc()
 {
-    fprintf(stderr, "[eventloop] thread running\n");
+    Logger::debug("[eventloop] thread running");
     std::unique_lock<std::mutex> lock(mtx_);
     while (running_)
     {
-        fprintf(stderr, "[eventloop] loop tick, queue size=%zu\n", queue_.size());
+        Logger::debug("[eventloop] loop tick, queue size=", queue_.size());
         if (queue_.empty())
         {
             cv_.wait(lock, [&]
                      { return !running_ || !queue_.empty(); });
-            fprintf(stderr, "[eventloop] woke, running=%d, queue size=%zu\n", (int)running_.load(), queue_.size());
+            Logger::debug("[eventloop] woke, running=", (int)running_.load(), ", queue size=", queue_.size());
             if (!running_)
                 break;
         }

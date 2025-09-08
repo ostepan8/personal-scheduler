@@ -1,148 +1,213 @@
 # Personal Scheduler
 
-All event timestamps are stored internally as absolute instants (UTC epoch).
-When interacting with the CLI and HTTP API you provide and view times in your
-local time zone. The scheduler converts local inputs to UTC for storage and
-converts UTC back to local for display. Google Calendar/Tasks integration also
-uses UTC (RFC3339 `Z`) to avoid ambiguity.
+A full-stack personal scheduling application with a C++ backend API server and React frontend. Features include recurring events, calendar views, and Google Calendar integration.
 
-Summary:
-- **Input and output:** local time
-- **Internal storage:** UTC
+## 🚀 Features
 
-## Quick Start
+### Backend
+- **RESTful API** with authentication and rate limiting
+- **Recurring Events** with flexible patterns (daily, weekly, monthly, yearly)
+- **SQLite Database** with automatic schema evolution
+- **Google Calendar Integration** via Python service
+- **Task Scheduling** with notifications and custom actions
+- **Event Loop** for background task processing
 
-1) Configure environment:
+### Frontend
+- **Modern React UI** with TypeScript and Tailwind CSS
+- **Multiple Calendar Views** (Day, Week, Month)
+- **Interactive Event Management** with recurring event support
+- **Real-time Dashboard** with today's events and statistics
+- **12-hour Time Display** with proper formatting
+- **Responsive Design** optimized for desktop and mobile
 
-Create a `.env` file (see `.env.example`) with at least:
-
-```
-API_KEY=changeme
-# Optional: require admin for destructive deletes
-ADMIN_API_KEY=
-HOST=127.0.0.1
-PORT=8080
-# Browser origin to allow (for frontends)
-CORS_ORIGIN=http://localhost:3000
-# Rate limiting (requests per window)
-RATE_LIMIT=100
-RATE_WINDOW=60
-```
-
-2) Build and run the API server:
+## 🏗️ Architecture
 
 ```
-make api && ./api_server
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   React Frontend │────│   C++ API Server  │────│  SQLite Database │
+│   (Port 3004)    │    │   (Port 8080)     │    │   (events.db)    │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+                              │
+                       ┌──────────────────┐
+                       │ Google Calendar  │
+                       │  (Python Service) │
+                       └──────────────────┘
 ```
 
-3) Call the API (replace the key):
+## 📦 Installation
 
-```
-curl -H 'Authorization: changeme' http://localhost:8080/events
-```
+### Prerequisites
+- **C++17** compiler (g++ or clang++)
+- **Node.js 16+** and npm
+- **SQLite3** development libraries
+- **Python 3.7+** (for Google Calendar integration)
 
-## Running Tests
+### Backend Setup
 
-Use `make test` or run the `./run_all_tests.sh` script to build and execute all unit tests.
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/ostepan8/personal-scheduler.git
+   cd personal-scheduler
+   ```
 
-## Database Persistence
+2. **Configure environment:**
+   ```bash
+   cp .env.example .env
+   ```
+   
+   Edit `.env` with your settings:
+   ```env
+   API_KEY=your-secret-api-key
+   ADMIN_API_KEY=your-admin-key
+   HOST=127.0.0.1
+   PORT=8080
+   CORS_ORIGIN=http://localhost:3004
+   RATE_LIMIT=100
+   RATE_WINDOW=60
+   ```
 
-Events are stored in an SQLite database (`events.db`). On startup the model
-loads all events from this database, reconstructing recurring patterns so
-commands like `list` and `nextn` work across restarts. The database tests in
-`tests/database` verify this behavior.
+3. **Build and run the API server:**
+   ```bash
+   make api
+   ./api_server
+   ```
 
-Schema evolves automatically. If you upgrade from older versions, the server
-will add missing columns (`category`, `notifier`, `action`) on startup.
+### Frontend Setup
 
-### Preload Horizon
+1. **Install dependencies:**
+   ```bash
+   cd frontend
+   npm install
+   ```
 
-`Model` can optionally limit how far ahead to preload events from the database.
-Pass a number of days as the second constructor argument. A negative value (the
-default) loads every stored event:
+2. **Configure environment:**
+   ```bash
+   cp .env.example .env.local
+   ```
+   
+   Edit `.env.local`:
+   ```env
+   REACT_APP_API_URL=http://localhost:8080
+   REACT_APP_API_KEY=your-secret-api-key
+   ```
 
-```cpp
-// Only load events occurring in the next 30 days
-SQLiteScheduleDatabase db("events.db");
-Model m(&db, 30);
-```
+3. **Start the development server:**
+   ```bash
+   PORT=3004 npm start
+   ```
 
-## Event Loop
+4. **Open your browser:**
+   Navigate to `http://localhost:3004`
 
-The scheduler now includes an active `EventLoop` component. Tasks derived from
-`Event` (for example `ScheduledTask`) can register notification and execution
-callbacks. The loop runs in a background thread, dispatching notifications a
-few minutes before each task executes and invoking the task's action at the
-scheduled time.
+## 🔧 Development
 
-On server startup, all persisted future tasks (events with category `task`)
-are re-enqueued so their notifications/actions continue after restarts. If a
-task was created via the API/CLI with named notifier/action, those names are
-restored and looked up in the registries.
-
-## Customising Notifications and Actions
-
-`ScheduledTask` allows full control over when notifications occur and what
-happens when a task runs. You can supply your own callback functions – perfect
-for triggering web requests, talking to a Raspberry Pi or scraping a website.
-
-```cpp
-// Notify 5 minutes before and call a custom action
-ScheduledTask task(
-    "abc", "demo", "Demo Task", when,
-    std::chrono::hours(1), std::chrono::minutes(5),
-    []{ std::cout << "ring ring"; },
-    []{ runMyScript(); });
-```
-
-Alternatively an absolute notification time can be provided. `Controller`
-exposes `scheduleTask` so CLI or agent code can enqueue tasks with different
-callbacks or lead times.
-
-## Action Registry
-
-The CLI includes a simple factory for binding named actions to scheduled
-events. Actions are registered via `ActionRegistry::registerAction` and can be
-referenced when creating tasks with the `addtask` command. `BuiltinActions`
-provides a collection of static helpers and a `registerAll()` method that
-registers default actions like `hello` and `fetch_example`.
-
-## Notification Registry
-
-Notifications work the same way. `NotificationRegistry::registerNotifier` binds
-a name to a callback taking the event ID and title. `BuiltinNotifiers` registers
-a simple `console` notifier that prints to stdout. When adding tasks via the CLI
-you can choose both a notifier and an action.
-
-## Calendar Integrations
-
-External calendars can be kept in sync by attaching `CalendarApi` implementations to the model. The provided `GoogleCalendarApi` launches a small Python helper that talks to Google Calendar using a service account. Register the API after constructing your model:
-
-```cpp
-auto gcal = std::make_shared<GoogleCalendarApi>("service_account.json");
-model.addCalendarApi(gcal);
+### Running Tests
+```bash
+make test
+# or
+./run_all_tests.sh
 ```
 
-Whenever events are added or removed, the Google calendar is updated automatically. Additional providers can subclass `CalendarApi` and call their own scripts.
-The helper script is invoked with environment variables passed directly on the command line using the `env` tool. This avoids modifying the process environment so concurrent calendar updates cannot leak credentials between threads.
+### Building for Production
+```bash
+# Backend
+make api
 
-## API Security
-
-The HTTP server can be secured via environment variables loaded from a `.env` file.
-Set `API_KEY` to a secret string and provide it in the `Authorization` header for
-all requests. If `ADMIN_API_KEY` is set, destructive DELETE routes (clear all,
-delete day/week/before, hard delete) require the admin key; soft deletes are
-allowed with the normal API key. Bind address and port are configured with
-`HOST` and `PORT`. Rate limiting (`RATE_LIMIT`, `RATE_WINDOW`) and CORS are
-configurable (set `CORS_ORIGIN` to your frontend origin). See `.env.example`.
-
-## Events Listing and Expansion
-
-`GET /events` returns stored event seeds by default. To list actual scheduled
-occurrences (including expansions of recurring events), use:
-
-```
-GET /events?expanded=true&start=YYYY-MM-DD HH:MM&end=YYYY-MM-DD HH:MM
+# Frontend
+cd frontend
+npm run build
 ```
 
-If `start`/`end` are omitted, it defaults to [now, now + 1 year].
+### Project Structure
+```
+scheduler/
+├── api/                 # API routes and server
+├── calendar/            # Google Calendar integration
+├── database/            # SQLite database layer
+├── model/               # Event and recurrence models
+├── scheduler/           # Event loop and task scheduling
+├── frontend/            # React application
+│   ├── src/
+│   │   ├── components/  # React components
+│   │   ├── services/    # API client
+│   │   └── types/       # TypeScript interfaces
+│   └── public/          # Static assets
+├── tests/               # Unit tests
+└── Makefile            # Build configuration
+```
+
+## 🛠️ API Usage
+
+### Authentication
+All API requests require the `Authorization` header:
+```bash
+curl -H 'Authorization: your-api-key' http://localhost:8080/events
+```
+
+### Key Endpoints
+- `GET /events` - List events
+- `POST /events` - Create event
+- `GET /events?expanded=true` - List with recurring expansions
+- `GET /recurring` - List recurring event templates
+- `POST /recurring` - Create recurring event
+- `GET /stats/events/{start}/{end}` - Get event statistics
+
+### Time Format
+- **Input/Output:** Local time (`YYYY-MM-DD HH:MM`)
+- **Internal Storage:** UTC timestamps
+- **Frontend Display:** 12-hour format with AM/PM
+
+## 🗓️ Calendar Integration
+
+### Google Calendar Setup
+1. Create a Google Cloud Project
+2. Enable Calendar API
+3. Create service account credentials
+4. Download `credentials.json` to `calendar_integration/`
+5. Share your calendar with the service account email
+
+The integration automatically syncs events bidirectionally between your personal scheduler and Google Calendar.
+
+## 🔒 Security Features
+
+- **API Key Authentication** for all endpoints
+- **Admin Key Protection** for destructive operations
+- **Rate Limiting** to prevent abuse
+- **CORS Configuration** for secure frontend access
+- **Input Sanitization** for all user data
+
+## 📊 Database Schema
+
+Events are stored in SQLite with automatic schema evolution:
+
+```sql
+CREATE TABLE events (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    description TEXT,
+    time INTEGER NOT NULL,  -- Unix timestamp (UTC)
+    duration INTEGER NOT NULL,  -- Duration in seconds
+    category TEXT,
+    recurring INTEGER DEFAULT 0,
+    -- ... additional fields for integrations
+);
+```
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- **httplib** for C++ HTTP server functionality
+- **nlohmann/json** for JSON parsing
+- **React** and **Tailwind CSS** for the modern frontend
+- **date-fns** for date manipulation utilities
