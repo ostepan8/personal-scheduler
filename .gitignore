@@ -51,4 +51,3 @@ tests/temp_*
 *.tmp
 *.temp
 core.*
-calendar_integration/token.pickle
