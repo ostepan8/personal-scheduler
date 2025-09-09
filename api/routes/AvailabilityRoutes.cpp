@@ -8,11 +8,13 @@ using namespace std::chrono;
 using ApiSerialization::eventToJson;
 using ApiSerialization::timeSlotToJson;
 
-namespace AvailabilityRoutes {
+namespace AvailabilityRoutes
+{
 
-void registerRoutes(httplib::Server &server, Model &model) {
-    server.Get("/events/conflicts", [&model](const httplib::Request &req, httplib::Response &res) {
-        std::cout << "GET /events/conflicts" << std::endl;
+    void registerRoutes(httplib::Server &server, Model &model)
+    {
+        server.Get("/events/conflicts", [&model](const httplib::Request &req, httplib::Response &res)
+                   {
         nlohmann::json out;
         try {
             std::string timeStr = req.get_param_value("time");
@@ -28,11 +30,10 @@ void registerRoutes(httplib::Server &server, Model &model) {
         } catch (const std::exception &ex) {
             out = { {"status","error"},{"message","Invalid input"} };
         }
-        res.set_content(out.dump(), "application/json");
-    });
+        res.set_content(out.dump(), "application/json"); });
 
-    server.Post("/events/validate", [&model](const httplib::Request &req, httplib::Response &res) {
-        std::cout << "POST /events/validate" << std::endl;
+        server.Post("/events/validate", [&model](const httplib::Request &req, httplib::Response &res)
+                    {
         nlohmann::json out;
         try {
             auto body = nlohmann::json::parse(req.body);
@@ -53,11 +54,10 @@ void registerRoutes(httplib::Server &server, Model &model) {
         } catch (const std::exception &ex) {
             out = { {"status","error"},{"message","Invalid input"} };
         }
-        res.set_content(out.dump(), "application/json");
-    });
+        res.set_content(out.dump(), "application/json"); });
 
-    server.Get(R"(/free-slots/(\d{4}-\d{2}-\d{2}))", [&model](const httplib::Request &req, httplib::Response &res) {
-        std::cout << "GET /free-slots/" << req.matches[1] << std::endl;
+        server.Get(R"(/free-slots/(\d{4}-\d{2}-\d{2}))", [&model](const httplib::Request &req, httplib::Response &res)
+                   {
         nlohmann::json out;
         try {
             auto date = TimeUtils::parseDate(req.matches[1]);
@@ -75,11 +75,10 @@ void registerRoutes(httplib::Server &server, Model &model) {
         } catch (const std::exception &ex) {
             out = { {"status","error"},{"message","Invalid input"} };
         }
-        res.set_content(out.dump(), "application/json");
-    });
+        res.set_content(out.dump(), "application/json"); });
 
-    server.Get("/free-slots/next", [&model](const httplib::Request &req, httplib::Response &res) {
-        std::cout << "GET /free-slots/next" << std::endl;
+        server.Get("/free-slots/next", [&model](const httplib::Request &req, httplib::Response &res)
+                   {
         nlohmann::json out;
         try {
             int durationMin = 60;
@@ -92,8 +91,7 @@ void registerRoutes(httplib::Server &server, Model &model) {
         } catch (const std::exception &ex) {
             out = { {"status","error"},{"message","Invalid input"} };
         }
-        res.set_content(out.dump(), "application/json");
-    });
-}
+        res.set_content(out.dump(), "application/json"); });
+    }
 
 } // namespace AvailabilityRoutes

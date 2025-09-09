@@ -1,320 +1,154 @@
-# Compiler and flags
+# Unified Scheduler Makefile
 CXX       = g++
 CXXFLAGS  = -std=c++17 -Wall -pthread -Iapi -Iexternal/json -Ischeduler -MMD -MP
-
-# Libraries to link
 LIBS      = -lsqlite3 -pthread -lcurl
 
-# Source files
-SRCS = main.cpp \
-       controller/Controller.cpp \
-       model/Model.cpp \
-       model/OneTimeEvent.cpp \
-       model/RecurringEvent.cpp \
-       model/recurrence/DailyRecurrence.cpp \
-       model/recurrence/WeeklyRecurrence.cpp \
-       model/recurrence/MonthlyRecurrence.cpp \
-       model/recurrence/YearlyRecurrence.cpp \
-       view/TextualView.cpp \
-       api/ApiServer.cpp \
-       api/routes/EventRoutes.cpp \
-       api/routes/AvailabilityRoutes.cpp \
-       api/routes/StatsRoutes.cpp \
-       api/routes/RecurringRoutes.cpp \
-       api/routes/TaskRoutes.cpp \
-       api/routes/WakeRoutes.cpp \
-       database/SQLiteScheduleDatabase.cpp \
-       database/SettingsStore.cpp \
-       scheduler/EventLoop.cpp \
-       processing/WakeScheduler.cpp \
-       calendar/GoogleCalendarApi.cpp \
-       utils/EnvLoader.cpp \
-       utils/Logger.cpp \
-       security/Auth.cpp \
-       security/RateLimiter.cpp
+# Core source files
+CORE_SRCS = controller/Controller.cpp \
+           model/Model.cpp \
+           model/OneTimeEvent.cpp \
+           model/RecurringEvent.cpp \
+           model/recurrence/DailyRecurrence.cpp \
+           model/recurrence/WeeklyRecurrence.cpp \
+           model/recurrence/MonthlyRecurrence.cpp \
+           model/recurrence/YearlyRecurrence.cpp \
+           view/TextualView.cpp \
+           api/routing/Router.cpp \
+           api/performance/PerformanceMonitor.cpp \
+           api/handlers/EventsHandler.cpp \
+           api/handlers/StatsHandler.cpp \
+           services/EventService.cpp \
+           database/SQLiteScheduleDatabase.cpp \
+           database/SettingsStore.cpp \
+           scheduler/EventLoop.cpp \
+           processing/WakeScheduler.cpp \
+           calendar/GoogleCalendarApi.cpp \
+           utils/EnvLoader.cpp \
+           utils/Logger.cpp \
+           utils/FastSerializer.cpp \
+           utils/ResponseCache.cpp \
+           security/Auth.cpp \
+           security/RateLimiter.cpp
+
+# Application source files
+APP_SRCS = main.cpp $(CORE_SRCS) \
+          api/ApiServer.cpp
+BENCHMARK_SRCS = benchmark.cpp $(CORE_SRCS)
+
+# Test source files
+TEST_SRCS = $(CORE_SRCS)
+EVENT_SERVICE_TEST_SRCS = tests/services/event_service_tests.cpp $(TEST_SRCS)
+HANDLERS_TEST_SRCS = tests/api/handlers_tests.cpp $(TEST_SRCS)
+ROUTER_TEST_SRCS = tests/api/router_tests.cpp $(TEST_SRCS)
+SECURITY_TEST_SRCS = tests/security/security_tests.cpp $(TEST_SRCS)
 
 # Object files
-OBJS = $(SRCS:.cpp=.o)
-DEPS = $(OBJS:.o=.d)
+APP_OBJS = $(APP_SRCS:.cpp=.o)
+BENCHMARK_OBJS = $(BENCHMARK_SRCS:.cpp=.o)
+EVENT_SERVICE_TEST_OBJS = $(EVENT_SERVICE_TEST_SRCS:.cpp=.o)
+HANDLERS_TEST_OBJS = $(HANDLERS_TEST_SRCS:.cpp=.o)
+ROUTER_TEST_OBJS = $(ROUTER_TEST_SRCS:.cpp=.o)
+SECURITY_TEST_OBJS = $(SECURITY_TEST_SRCS:.cpp=.o)
 
-# Executable names
-API_TARGET = api_server
+# Targets
+SERVER_TARGET = scheduler_server
+BENCHMARK_TARGET = benchmark
+EVENT_SERVICE_TEST_TARGET = event_service_tests
+HANDLERS_TEST_TARGET = handlers_tests
+ROUTER_TEST_TARGET = router_tests
+SECURITY_TEST_TARGET = security_tests
 
-# MVC command-line application sources (exclude API/server routes)
-MVC_SRCS = $(filter-out \
-             main.cpp \
-             api/ApiServer.cpp \
-             api/routes/EventRoutes.cpp \
-             api/routes/AvailabilityRoutes.cpp \
-             api/routes/StatsRoutes.cpp \
-             api/routes/RecurringRoutes.cpp \
-             api/routes/TaskRoutes.cpp \
-             api/routes/WakeRoutes.cpp, \
-           $(SRCS)) \
-           main_mvc.cpp
-MVC_OBJS = $(MVC_SRCS:.cpp=.o)
-MVC_DEPS = $(MVC_OBJS:.o=.d)
+.PHONY: all clean server benchmark test unit-tests install help \
+        $(EVENT_SERVICE_TEST_TARGET) $(HANDLERS_TEST_TARGET) $(ROUTER_TEST_TARGET) $(SECURITY_TEST_TARGET)
 
-# Default build: API server
-$(API_TARGET): $(OBJS)
-	$(CXX) $(CXXFLAGS) $(OBJS) $(LIBS) -o $(API_TARGET)
+all: server
 
-# Build MVC CLI tool
-mvc: $(MVC_OBJS)
-	$(CXX) $(CXXFLAGS) $(MVC_OBJS) $(LIBS) -o mvc
+server: $(SERVER_TARGET)
+	@echo "Built SOLID-compliant scheduler server"
 
-.PHONY: mvc api
+benchmark: $(BENCHMARK_TARGET)
+	@echo "Built performance benchmark"
 
-# Alias for building the API server
-api: $(API_TARGET)
+$(SERVER_TARGET): $(APP_OBJS)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(LIBS)
 
-# Compile any .cpp into .o
+$(BENCHMARK_TARGET): $(BENCHMARK_OBJS)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(LIBS)
+
+# Test targets
+$(EVENT_SERVICE_TEST_TARGET): $(EVENT_SERVICE_TEST_OBJS)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(LIBS)
+
+$(HANDLERS_TEST_TARGET): $(HANDLERS_TEST_OBJS)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(LIBS)
+
+$(ROUTER_TEST_TARGET): $(ROUTER_TEST_OBJS)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(LIBS)
+
+$(SECURITY_TEST_TARGET): $(SECURITY_TEST_OBJS)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(LIBS)
+
+# Include dependency files  
+-include $(APP_OBJS:.o=.d) $(BENCHMARK_OBJS:.o=.d) \
+         $(EVENT_SERVICE_TEST_OBJS:.o=.d) $(HANDLERS_TEST_OBJS:.o=.d) \
+         $(ROUTER_TEST_OBJS:.o=.d) $(SECURITY_TEST_OBJS:.o=.d)
+
+# Pattern rule for object files
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
--include $(DEPS) $(MVC_DEPS)
+test: benchmark
+	@echo "Running performance benchmark..."
+	./$(BENCHMARK_TARGET)
 
-# Clean up builds and tests
+unit-tests: $(EVENT_SERVICE_TEST_TARGET) $(HANDLERS_TEST_TARGET) $(ROUTER_TEST_TARGET) $(SECURITY_TEST_TARGET)
+	@echo "Running unit tests..."
+	@echo "Running EventService tests..."
+	./$(EVENT_SERVICE_TEST_TARGET)
+	@echo "Running Handlers tests..."
+	./$(HANDLERS_TEST_TARGET)
+	@echo "Running Router tests..."
+	./$(ROUTER_TEST_TARGET)
+	@echo "Running Security tests..."
+	./$(SECURITY_TEST_TARGET)
+	@echo "All unit tests completed!"
+
 clean:
-	rm -f $(OBJS) main_mvc.o $(API_TARGET) mvc \
-	      $(RECURRENCE_TEST_OBJS) $(EVENT_TEST_OBJS) \
-	      $(MODEL_TEST_OBJS) $(MODEL_COMPREHENSIVE_TEST_OBJS) \
-	      $(CONTROLLER_TEST_OBJS) $(VIEW_TEST_OBJS) $(API_TEST_OBJS) \
-	      $(DATABASE_TEST_OBJS) $(ACTION_REGISTRY_TEST_OBJS) \
-	      $(BUILTIN_ACTIONS_TEST_OBJS) $(NOTIFICATION_REGISTRY_TEST_OBJS) \
-	      $(BUILTIN_NOTIFIERS_TEST_OBJS) $(GCAL_TEST_OBJS) $(INTEGRATION_TEST_OBJS) $(TEST_TARGETS)
+	rm -f $(APP_OBJS) $(BENCHMARK_OBJS)
+	rm -f $(EVENT_SERVICE_TEST_OBJS) $(HANDLERS_TEST_OBJS) $(ROUTER_TEST_OBJS) $(SECURITY_TEST_OBJS)
+	rm -f $(APP_OBJS:.o=.d) $(BENCHMARK_OBJS:.o=.d)  
+	rm -f $(EVENT_SERVICE_TEST_OBJS:.o=.d) $(HANDLERS_TEST_OBJS:.o=.d) \
+	      $(ROUTER_TEST_OBJS:.o=.d) $(SECURITY_TEST_OBJS:.o=.d)
+	rm -f ./$(SERVER_TARGET) ./$(BENCHMARK_TARGET)
+	rm -f $(EVENT_SERVICE_TEST_TARGET) $(HANDLERS_TEST_TARGET) $(ROUTER_TEST_TARGET) $(SECURITY_TEST_TARGET)
+	@echo "Cleaned build artifacts"
 
-# ------------------------
-# Test setup
-# ------------------------
+install: server
+	@echo "Installing scheduler to /usr/local/bin (requires sudo)"
+	sudo cp $(SERVER_TARGET) /usr/local/bin/
 
-# Recurrence tests
-RECURRENCE_TEST_SRCS = tests/recurrence/recurrence_tests.cpp \
-                       model/recurrence/DailyRecurrence.cpp \
-                       model/recurrence/WeeklyRecurrence.cpp \
-                       model/recurrence/MonthlyRecurrence.cpp \
-                       model/recurrence/YearlyRecurrence.cpp
-RECURRENCE_TEST_OBJS = $(RECURRENCE_TEST_SRCS:.cpp=.o)
-RECURRENCE_TEST_TARGET = recurrence_tests
-
-# Event tests
-EVENT_TEST_SRCS = tests/events/event_tests.cpp \
-                  model/OneTimeEvent.cpp \
-                  model/RecurringEvent.cpp \
-                  model/recurrence/DailyRecurrence.cpp \
-                  model/recurrence/WeeklyRecurrence.cpp \
-                  model/recurrence/MonthlyRecurrence.cpp \
-                  model/recurrence/YearlyRecurrence.cpp \
-                  calendar/GoogleCalendarApi.cpp
-EVENT_TEST_OBJS = $(EVENT_TEST_SRCS:.cpp=.o)
-EVENT_TEST_TARGET = event_tests
-
-# Model tests
-MODEL_TEST_SRCS = tests/model/model_tests.cpp \
-                  model/Model.cpp \
-                  model/OneTimeEvent.cpp \
-                  model/RecurringEvent.cpp \
-                  model/recurrence/DailyRecurrence.cpp \
-                  model/recurrence/WeeklyRecurrence.cpp \
-                  model/recurrence/MonthlyRecurrence.cpp \
-                  model/recurrence/YearlyRecurrence.cpp \
-                  calendar/GoogleCalendarApi.cpp
-MODEL_TEST_OBJS = $(MODEL_TEST_SRCS:.cpp=.o)
-MODEL_TEST_TARGET = model_tests
-
-# Model comprehensive tests
-MODEL_COMPREHENSIVE_TEST_SRCS = tests/model/model_comprehensive_tests.cpp \
-                                model/Model.cpp \
-                                model/OneTimeEvent.cpp \
-                                model/RecurringEvent.cpp \
-                                model/recurrence/DailyRecurrence.cpp \
-                                model/recurrence/WeeklyRecurrence.cpp \
-                                model/recurrence/MonthlyRecurrence.cpp \
-                                model/recurrence/YearlyRecurrence.cpp \
-                                calendar/GoogleCalendarApi.cpp
-MODEL_COMPREHENSIVE_TEST_OBJS = $(MODEL_COMPREHENSIVE_TEST_SRCS:.cpp=.o)
-MODEL_COMPREHENSIVE_TEST_TARGET = model_comprehensive_tests
-
-# Controller tests
-CONTROLLER_TEST_SRCS = tests/controller/controller_tests.cpp \
-                       controller/Controller.cpp \
-                       model/Model.cpp \
-                       model/OneTimeEvent.cpp \
-                       model/RecurringEvent.cpp \
-                       model/recurrence/DailyRecurrence.cpp \
-                       model/recurrence/WeeklyRecurrence.cpp \
-                       model/recurrence/MonthlyRecurrence.cpp \
-                       model/recurrence/YearlyRecurrence.cpp \
-                       scheduler/EventLoop.cpp \
-                       calendar/GoogleCalendarApi.cpp
-CONTROLLER_TEST_OBJS = $(CONTROLLER_TEST_SRCS:.cpp=.o)
-CONTROLLER_TEST_TARGET = controller_tests
-
-# View tests
-VIEW_TEST_SRCS = tests/view/view_tests.cpp \
-                 view/TextualView.cpp \
-                 model/Model.cpp \
-                 model/OneTimeEvent.cpp \
-                 model/RecurringEvent.cpp \
-                 model/recurrence/DailyRecurrence.cpp \
-                 model/recurrence/WeeklyRecurrence.cpp \
-                 model/recurrence/MonthlyRecurrence.cpp \
-                 model/recurrence/YearlyRecurrence.cpp \
-                 calendar/GoogleCalendarApi.cpp
-VIEW_TEST_OBJS = $(VIEW_TEST_SRCS:.cpp=.o)
-VIEW_TEST_TARGET = view_tests
-
-# API tests
-API_TEST_SRCS = tests/api/api_tests.cpp \
-                api/ApiServer.cpp \
-                api/routes/EventRoutes.cpp \
-                api/routes/AvailabilityRoutes.cpp \
-                api/routes/StatsRoutes.cpp \
-                api/routes/RecurringRoutes.cpp \
-                api/routes/TaskRoutes.cpp \
-                scheduler/EventLoop.cpp \
-                utils/EnvLoader.cpp \
-                security/Auth.cpp \
-                security/RateLimiter.cpp \
-                model/Model.cpp \
-                model/OneTimeEvent.cpp \
-                model/RecurringEvent.cpp \
-                model/recurrence/DailyRecurrence.cpp \
-                model/recurrence/WeeklyRecurrence.cpp \
-                model/recurrence/MonthlyRecurrence.cpp \
-                model/recurrence/YearlyRecurrence.cpp \
-                calendar/GoogleCalendarApi.cpp
-API_TEST_OBJS = $(API_TEST_SRCS:.cpp=.o)
-API_TEST_TARGET = api_tests
-
-# Database tests
-DATABASE_TEST_SRCS = tests/database/database_tests.cpp \
-                     database/SQLiteScheduleDatabase.cpp \
-                     model/Model.cpp \
-                     model/OneTimeEvent.cpp \
-                     model/RecurringEvent.cpp \
-                     model/recurrence/DailyRecurrence.cpp \
-                     model/recurrence/WeeklyRecurrence.cpp \
-                     model/recurrence/MonthlyRecurrence.cpp \
-                     model/recurrence/YearlyRecurrence.cpp \
-                     calendar/GoogleCalendarApi.cpp
-DATABASE_TEST_OBJS = $(DATABASE_TEST_SRCS:.cpp=.o)
-DATABASE_TEST_TARGET = database_tests
-
-# Utility tests
-ACTION_REGISTRY_TEST_SRCS = tests/utils/action_registry_tests.cpp
-ACTION_REGISTRY_TEST_OBJS = $(ACTION_REGISTRY_TEST_SRCS:.cpp=.o)
-ACTION_REGISTRY_TEST_TARGET = action_registry_tests
-
-BUILTIN_ACTIONS_TEST_SRCS = tests/utils/builtin_actions_tests.cpp
-BUILTIN_ACTIONS_TEST_OBJS = $(BUILTIN_ACTIONS_TEST_SRCS:.cpp=.o)
-BUILTIN_ACTIONS_TEST_TARGET = builtin_actions_tests
-
-NOTIFICATION_REGISTRY_TEST_SRCS = tests/utils/notification_registry_tests.cpp
-NOTIFICATION_REGISTRY_TEST_OBJS = $(NOTIFICATION_REGISTRY_TEST_SRCS:.cpp=.o)
-NOTIFICATION_REGISTRY_TEST_TARGET = notification_registry_tests
-
-BUILTIN_NOTIFIERS_TEST_SRCS = tests/utils/builtin_notifiers_tests.cpp
-BUILTIN_NOTIFIERS_TEST_OBJS = $(BUILTIN_NOTIFIERS_TEST_SRCS:.cpp=.o)
-BUILTIN_NOTIFIERS_TEST_TARGET = builtin_notifiers_tests
-
-# Google Calendar tests
-GCAL_TEST_SRCS = tests/calendar/google_calendar_api_tests.cpp \
-                 calendar/GoogleCalendarApi.cpp \
-                 model/OneTimeEvent.cpp \
-                 model/RecurringEvent.cpp \
-                 model/recurrence/DailyRecurrence.cpp \
-                 model/recurrence/WeeklyRecurrence.cpp \
-                 model/recurrence/MonthlyRecurrence.cpp \
-                 model/recurrence/YearlyRecurrence.cpp
-GCAL_TEST_OBJS = $(GCAL_TEST_SRCS:.cpp=.o)
-GCAL_TEST_TARGET = google_calendar_api_tests
-
-# Integration tests
-INTEGRATION_TEST_SRCS = tests/integration/integration_tests.cpp \
-                       controller/Controller.cpp \
-                       view/TextualView.cpp \
-                       api/ApiServer.cpp \
-                       api/routes/EventRoutes.cpp \
-                       api/routes/AvailabilityRoutes.cpp \
-                       api/routes/StatsRoutes.cpp \
-                       api/routes/RecurringRoutes.cpp \
-                       api/routes/TaskRoutes.cpp \
-                       utils/EnvLoader.cpp \
-                       security/Auth.cpp \
-                       security/RateLimiter.cpp \
-                       model/Model.cpp \
-                       model/OneTimeEvent.cpp \
-                       model/RecurringEvent.cpp \
-                       model/recurrence/DailyRecurrence.cpp \
-                       model/recurrence/WeeklyRecurrence.cpp \
-                       model/recurrence/MonthlyRecurrence.cpp \
-                       model/recurrence/YearlyRecurrence.cpp \
-                       database/SQLiteScheduleDatabase.cpp \
-                       scheduler/EventLoop.cpp \
-                       calendar/GoogleCalendarApi.cpp
-INTEGRATION_TEST_OBJS = $(INTEGRATION_TEST_SRCS:.cpp=.o)
-INTEGRATION_TEST_TARGET = integration_tests
-
-# All test targets
-TEST_TARGETS = $(RECURRENCE_TEST_TARGET) \
-               $(EVENT_TEST_TARGET) \
-               $(MODEL_TEST_TARGET) \
-               $(MODEL_COMPREHENSIVE_TEST_TARGET) \
-               $(CONTROLLER_TEST_TARGET) \
-               $(VIEW_TEST_TARGET) \
-               $(API_TEST_TARGET) \
-               $(DATABASE_TEST_TARGET) \
-               $(ACTION_REGISTRY_TEST_TARGET) \
-               $(BUILTIN_ACTIONS_TEST_TARGET) \
-               $(NOTIFICATION_REGISTRY_TEST_TARGET) \
-               $(BUILTIN_NOTIFIERS_TEST_TARGET) \
-               $(GCAL_TEST_TARGET) \
-               $(INTEGRATION_TEST_TARGET)
-
-# Build and run all tests
-test: $(TEST_TARGETS)
-	./run_all_tests.sh
-
-# Individual test rules
-$(RECURRENCE_TEST_TARGET): $(RECURRENCE_TEST_OBJS)
-	$(CXX) $(CXXFLAGS) $(RECURRENCE_TEST_OBJS) $(LIBS) -o $@
-
-$(EVENT_TEST_TARGET): $(EVENT_TEST_OBJS)
-	$(CXX) $(CXXFLAGS) $(EVENT_TEST_OBJS) $(LIBS) -o $@
-
-$(MODEL_TEST_TARGET): $(MODEL_TEST_OBJS)
-	$(CXX) $(CXXFLAGS) $(MODEL_TEST_OBJS) $(LIBS) -o $@
-
-$(MODEL_COMPREHENSIVE_TEST_TARGET): $(MODEL_COMPREHENSIVE_TEST_OBJS)
-	$(CXX) $(CXXFLAGS) $(MODEL_COMPREHENSIVE_TEST_OBJS) $(LIBS) -o $@
-
-$(CONTROLLER_TEST_TARGET): $(CONTROLLER_TEST_OBJS)
-	$(CXX) $(CXXFLAGS) $(CONTROLLER_TEST_OBJS) $(LIBS) -o $@
-
-$(VIEW_TEST_TARGET): $(VIEW_TEST_OBJS)
-	$(CXX) $(CXXFLAGS) $(VIEW_TEST_OBJS) $(LIBS) -o $@
-
-$(API_TEST_TARGET): $(API_TEST_OBJS)
-	$(CXX) $(CXXFLAGS) $(API_TEST_OBJS) $(LIBS) -o $@
-
-$(DATABASE_TEST_TARGET): $(DATABASE_TEST_OBJS)
-	$(CXX) $(CXXFLAGS) $(DATABASE_TEST_OBJS) $(LIBS) -o $@
-
-$(ACTION_REGISTRY_TEST_TARGET): $(ACTION_REGISTRY_TEST_OBJS)
-	$(CXX) $(CXXFLAGS) $(ACTION_REGISTRY_TEST_OBJS) $(LIBS) -o $@
-
-$(BUILTIN_ACTIONS_TEST_TARGET): $(BUILTIN_ACTIONS_TEST_OBJS)
-	$(CXX) $(CXXFLAGS) $(BUILTIN_ACTIONS_TEST_OBJS) $(LIBS) -o $@
-
-$(NOTIFICATION_REGISTRY_TEST_TARGET): $(NOTIFICATION_REGISTRY_TEST_OBJS)
-	$(CXX) $(CXXFLAGS) $(NOTIFICATION_REGISTRY_TEST_OBJS) $(LIBS) -o $@
-
-$(BUILTIN_NOTIFIERS_TEST_TARGET): $(BUILTIN_NOTIFIERS_TEST_OBJS)
-	$(CXX) $(CXXFLAGS) $(BUILTIN_NOTIFIERS_TEST_OBJS) $(LIBS) -o $@
-
-$(GCAL_TEST_TARGET): $(GCAL_TEST_OBJS)
-	$(CXX) $(CXXFLAGS) $(GCAL_TEST_OBJS) $(LIBS) -o $@
-
-$(INTEGRATION_TEST_TARGET): $(INTEGRATION_TEST_OBJS)
-	$(CXX) $(CXXFLAGS) $(INTEGRATION_TEST_OBJS) $(LIBS) -o $@
+help:
+	@echo "Available targets:"
+	@echo "  all        - Build the SOLID-compliant scheduler server (default)"
+	@echo "  server     - Build the scheduler server"
+	@echo "  benchmark  - Build the performance benchmark tool"
+	@echo "  test       - Run the performance benchmark"
+	@echo "  unit-tests - Build and run all unit tests"
+	@echo "  clean      - Remove build artifacts"
+	@echo "  install    - Install to /usr/local/bin"
+	@echo "  help       - Show this help message"
+	@echo ""
+	@echo "Individual test targets:"
+	@echo "  event_service_tests - Test EventService component"
+	@echo "  handlers_tests      - Test API handlers"
+	@echo "  router_tests        - Test Router component"
+	@echo "  security_tests      - Test Auth and RateLimiter"
+	@echo ""
+	@echo "Server follows SOLID principles:"
+	@echo "  ./scheduler_server    - Run SOLID-compliant server"
+	@echo ""
+	@echo "Benchmark usage:"
+	@echo "  ./benchmark           - Run all benchmarks"
+	@echo "  ./benchmark --model   - Run model benchmarks only"
+	@echo "  ./benchmark --api     - Run API benchmarks only"
+	@echo "  ./benchmark --full    - Run full system benchmark only"

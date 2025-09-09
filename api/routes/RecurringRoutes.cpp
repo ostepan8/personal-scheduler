@@ -44,7 +44,6 @@ static std::shared_ptr<RecurrencePattern> parsePattern(const nlohmann::json &j,
 
 void registerRoutes(httplib::Server &server, Model &model) {
     server.Get("/recurring", [&model](const httplib::Request &, httplib::Response &res) {
-        std::cout << "GET /recurring" << std::endl;
         nlohmann::json out;
         try {
             auto horizon = system_clock::now() + hours(24 * 365 * 5);
@@ -62,7 +61,6 @@ void registerRoutes(httplib::Server &server, Model &model) {
     });
 
     server.Post("/recurring", [&model](const httplib::Request &req, httplib::Response &res) {
-        std::cout << "POST /recurring" << std::endl;
         nlohmann::json out;
         try {
             auto body = nlohmann::json::parse(req.body);
@@ -85,7 +83,6 @@ void registerRoutes(httplib::Server &server, Model &model) {
     });
 
     server.Put(R"(/recurring/(.+))", [&model](const httplib::Request &req, httplib::Response &res) {
-        std::cout << "PUT /recurring/" << req.matches[1] << std::endl;
         nlohmann::json out;
         try {
             std::string id = req.matches[1];
@@ -108,7 +105,6 @@ void registerRoutes(httplib::Server &server, Model &model) {
     });
 
     server.Delete(R"(/recurring/(.+))", [&model](const httplib::Request &req, httplib::Response &res) {
-        std::cout << "DELETE /recurring/" << req.matches[1] << std::endl;
         nlohmann::json out;
         try {
             std::string id = req.matches[1];

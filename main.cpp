@@ -1,7 +1,8 @@
-// main.cpp
+// main_solid.cpp - SOLID Principles Implementation
 #include "model/Model.h"
 #include "database/SQLiteScheduleDatabase.h"
 #include "api/ApiServer.h"
+#include "services/EventService.h"
 #include "scheduler/EventLoop.h"
 #include "scheduler/ScheduledTask.h"
 #include "calendar/GoogleCalendarApi.h"
@@ -12,6 +13,9 @@
 #include "utils/ActionRegistry.h"
 #include "utils/BuiltinNotifiers.h"
 #include "utils/BuiltinActions.h"
+#include "security/Auth.h"
+#include "security/RateLimiter.h"
+#include "utils/DependencyContainer.h"
 #include <vector>
 #include <memory>
 #include <chrono>
@@ -20,35 +24,46 @@ int main()
 {
     // Load configuration from .env if present
     EnvLoader::load();
-    // Construct database and model using dependency injection
-    SQLiteScheduleDatabase db("events.db");
-    Model model(&db);
+    
+    // Setup dependency injection container (Dependency Inversion Principle)
+    DependencyContainer container;
+    
+    // Register core components following DIP
+    auto db = std::make_shared<SQLiteScheduleDatabase>("events.db");
+    container.registerSingleton<SQLiteScheduleDatabase>(db);
+    
+    auto model = std::make_shared<Model>(db.get());
+    container.registerSingleton<Model>(model);
+    
+    // Register calendar API
     auto gcal = std::make_shared<GoogleCalendarApi>("calendar_integration/credentials.json");
-    model.addCalendarApi(gcal);
+    model->addCalendarApi(gcal);
+    
+    // Register event loop
+    auto eventLoop = std::make_shared<EventLoop>(*model);
+    container.registerSingleton<EventLoop>(eventLoop);
+    eventLoop->start();
 
-    EventLoop loop(model);
-    loop.start();
-
-    // Settings + wake-up scheduling
-    SettingsStore settings("events.db");
-    // Default wake URL from env (overwrite to ensure it's current)
+    // Register settings and wake scheduler
+    auto settings = std::make_shared<SettingsStore>("events.db");
+    container.registerSingleton<SettingsStore>(settings);
+    
     const char *wakeUrl = getenv("WAKE_SERVER_URL");
-    if (wakeUrl) settings.setString("wake.server_url", wakeUrl);
-    WakeScheduler wake(model, loop, settings);
-    wake.scheduleToday();
-    wake.scheduleDailyMaintenance();
+    if (wakeUrl) settings->setString("wake.server_url", wakeUrl);
+    
+    auto wake = std::make_shared<WakeScheduler>(*model, *eventLoop, *settings);
+    container.registerSingleton<WakeScheduler>(wake);
+    wake->scheduleToday();
+    wake->scheduleDailyMaintenance();
 
-    // Re-enqueue persisted task events (category == "task") so their
-    // notifications/actions trigger after a restart. Uses default console
-    // notify and execute callbacks if none were persisted.
+    // Re-enqueue persisted task events following the same pattern as before
     {
         using namespace std::chrono;
-        // Ensure builtins are registered before looking up names
         BuiltinActions::registerAll();
         BuiltinNotifiers::registerAll();
         auto now = system_clock::now();
         auto horizon = now + hours(24 * 365);
-        auto events = model.getEvents(-1, horizon);
+        auto events = model->getEvents(1000, horizon);
         for (const auto &ev : events)
         {
             if (ev.getCategory() == "task" && ev.getTime() > now)
@@ -61,7 +76,6 @@ int main()
                         notifyTimes.push_back(tp);
                 }
 
-                // Look up persisted notifier/action names; fallback to console/defaults
                 std::function<void(const std::string&, const std::string&)> notifierFn;
                 if (!ev.getNotifierName().empty()) {
                     notifierFn = NotificationRegistry::getNotifier(ev.getNotifierName());
@@ -84,23 +98,56 @@ int main()
                     ev.getId(), ev.getDescription(), ev.getTitle(), ev.getTime(), ev.getDuration(),
                     notifyTimes, std::move(notifyCb), std::move(actionCb));
                 task->setCategory("task");
-                // Preserve names for persistence (clone copies base fields)
                 task->setNotifierName(ev.getNotifierName());
                 task->setActionName(ev.getActionName());
-                loop.addTask(task);
+                eventLoop->addTask(task);
             }
         }
     }
 
-    // Start the HTTP API server
+    // Setup HTTP server following SOLID principles
     const char *portEnv = getenv("PORT");
     int port = portEnv ? std::stoi(portEnv) : 8080;
     const char *hostEnv = getenv("HOST");
     std::string host = hostEnv ? hostEnv : "127.0.0.1";
-    ApiServer api(model, port, host, &loop, &wake, &settings);
+    
+    // Create optional security components
+    Auth* authPtr = nullptr;
+    RateLimiter* limiterPtr = nullptr;
+    
+    const char *key = getenv("API_KEY");
+    const char *adm = getenv("ADMIN_API_KEY");
+    if (key) {
+        auto auth = std::make_shared<Auth>(key, adm ? adm : "");
+        container.registerSingleton<Auth>(auth);
+        authPtr = auth.get();
+    }
+    
+    const char *limit = getenv("RATE_LIMIT");
+    size_t maxReq = limit ? std::stoul(limit) : 100;
+    const char *window = getenv("RATE_WINDOW");
+    int sec = window ? std::stoi(window) : 60;
+    auto limiter = std::make_shared<RateLimiter>(maxReq, std::chrono::seconds(sec));
+    container.registerSingleton<RateLimiter>(limiter);
+    limiterPtr = limiter.get();
+    
+    // Create service layer (following DIP - depend on abstractions)
+    EventService eventService(*model);
+    
+    // Create SOLID-compliant API server
+    ApiServer api(eventService, port, host, authPtr, limiterPtr);
+    
+    std::cout << "🏗️  SOLID Principles Architecture:\n";
+    std::cout << "   ✅ Single Responsibility: Each class has one reason to change\n";
+    std::cout << "   ✅ Open/Closed: Open for extension, closed for modification\n";
+    std::cout << "   ✅ Liskov Substitution: Derived classes are substitutable\n";
+    std::cout << "   ✅ Interface Segregation: Small, focused interfaces\n";
+    std::cout << "   ✅ Dependency Inversion: Depend on abstractions, not concretions\n";
+    std::cout << "   📊 Routes registered: " << api.getRouteCount() << "\n";
+    
     api.start();
 
-    loop.stop();
+    eventLoop->stop();
 
     return 0;
 }

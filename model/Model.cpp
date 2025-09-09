@@ -77,7 +77,6 @@ std::string Model::generateUniqueId() const
 Model::Model(IScheduleDatabase *db, int preloadDaysAhead)
     : db_(db)
 {
-    Logger::debug("[model] ctor preloadDaysAhead=", preloadDaysAhead);
     if (preloadDaysAhead < 0)
         preloadEnd_ = std::chrono::system_clock::time_point::max();
     else
@@ -86,9 +85,7 @@ Model::Model(IScheduleDatabase *db, int preloadDaysAhead)
 
     if (db_)
     {
-        Logger::debug("[model] loading events from DB");
         auto loaded = db_->getAllEvents();
-        Logger::debug("[model] loaded count=", loaded.size());
         for (auto &e : loaded)
         {
             if (preloadDaysAhead >= 0 && e->getTime() > preloadEnd_)
@@ -98,10 +95,8 @@ Model::Model(IScheduleDatabase *db, int preloadDaysAhead)
             {
                 categories_.insert(e->getCategory());
             }
-            Logger::debug("[model] add id=", e->getId(), " title.len=", e->getTitle().size(), " time=", std::chrono::duration_cast<std::chrono::seconds>(e->getTime().time_since_epoch()).count(), " recurring=", e->isRecurring(), " cat=", e->getCategory());
             events.emplace(e->getTime(), std::move(e));
         }
-        Logger::debug("[model] events size=", events.size());
     }
 }
 
@@ -119,7 +114,6 @@ Model::getEvents(int maxOccurrences,
     std::lock_guard<std::mutex> lock(mutex_);
     result.reserve(events.size());
 
-    Logger::debug("[debug] getEvents: size=", events.size(), " endDate=", std::chrono::duration_cast<std::chrono::seconds>(endDate.time_since_epoch()).count());
 
     for (const auto &kv : events)
     {
@@ -128,14 +122,12 @@ Model::getEvents(int maxOccurrences,
         {
             break;
         }
-        Logger::debug("[debug] push id=", e.getId(), " time=", std::chrono::duration_cast<std::chrono::seconds>(e.getTime().time_since_epoch()).count());
         result.push_back(e);
         if (maxOccurrences > 0 && static_cast<int>(result.size()) >= maxOccurrences)
         {
             break;
         }
     }
-    Logger::debug("[debug] getEvents: returning ", result.size(), " events");
     return result;
 }
 
@@ -304,7 +296,6 @@ static std::chrono::system_clock::time_point startOfLocalDay(std::chrono::system
 
 std::vector<Event> Model::getEventsOnDay(std::chrono::system_clock::time_point day) const
 {
-    Logger::debug("[model] getEventsOnDay enter");
     auto start = startOfLocalDay(day);
     auto end = start + std::chrono::hours(24);
     std::vector<Event> result;
@@ -312,14 +303,12 @@ std::vector<Event> Model::getEventsOnDay(std::chrono::system_clock::time_point d
     for (const auto &kv : events)
     {
         const Event &e = *kv.second;
-        Logger::debug("[model] inspect id=", e.getId(), " time=", std::chrono::duration_cast<std::chrono::seconds>(e.getTime().time_since_epoch()).count(), " rec=", e.isRecurring());
         if (!e.isRecurring())
         {
             if (e.getTime() < start)
                 continue;
             if (e.getTime() >= end)
                 break;
-            Logger::debug("[model] push one-time id=", e.getId());
             result.push_back(e);
         }
         else
@@ -328,7 +317,6 @@ std::vector<Event> Model::getEventsOnDay(std::chrono::system_clock::time_point d
             if (!re)
                 continue;
             auto times = re->getNextNOccurrences(start - std::chrono::seconds(1), 1000);
-            Logger::debug("[model] rec id=", e.getId(), " occ.count=", times.size());
             for (auto t : times)
             {
                 if (t >= end)
@@ -338,7 +326,6 @@ std::vector<Event> Model::getEventsOnDay(std::chrono::system_clock::time_point d
                     RecurringEvent occ(re->getId(), re->getDescription(), re->getTitle(),
                                        t, re->getDuration(), re->getRecurrencePattern(),
                                        re->getCategory());
-                    Logger::debug("[model] push occ id=", occ.getId(), " time=", std::chrono::duration_cast<std::chrono::seconds>(occ.getTime().time_since_epoch()).count());
                     result.push_back(occ);
                 }
             }
@@ -346,7 +333,6 @@ std::vector<Event> Model::getEventsOnDay(std::chrono::system_clock::time_point d
     }
     std::sort(result.begin(), result.end(),
               [](const Event &a, const Event &b) { return a.getTime() < b.getTime(); });
-    Logger::debug("[model] getEventsOnDay exit count=", result.size());
     return result;
 }
 

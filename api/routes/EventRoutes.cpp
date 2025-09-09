@@ -9,17 +9,15 @@
 using namespace std::chrono;
 using ApiSerialization::eventToJson;
 
-namespace EventRoutes {
+namespace EventRoutes
+{
 
-void registerRoutes(httplib::Server &server, Model &model, WakeScheduler *wake) {
-    // All events (optionally expanded occurrences)
-    server.Get("/events", [&model](const httplib::Request &req, httplib::Response &res) {
+    void registerRoutes(httplib::Server &server, Model &model, WakeScheduler *wake)
+    {
+        // All events (optionally expanded occurrences)
+        server.Get("/events", [&model](const httplib::Request &req, httplib::Response &res)
+                   {
         
-        std::cout << "GET /events";
-        if (req.has_param("expanded")) std::cout << "?expanded=" << req.get_param_value("expanded");
-        if (req.has_param("start")) std::cout << "&start=" << req.get_param_value("start");
-        if (req.has_param("end")) std::cout << "&end=" << req.get_param_value("end");
-        std::cout << std::endl;
         nlohmann::json out;
         try {
             bool expanded = req.has_param("expanded") && (req.get_param_value("expanded") == "true" || req.get_param_value("expanded") == "1");
@@ -44,13 +42,12 @@ void registerRoutes(httplib::Server &server, Model &model, WakeScheduler *wake) 
         } catch (const std::exception &ex) {
             out = { {"status","error"},{"message","Invalid input"} };
         }
-        res.set_content(out.dump(), "application/json");
-    });
+        res.set_content(out.dump(), "application/json"); });
 
-    // Next event
-    server.Get("/events/next", [&model](const httplib::Request &, httplib::Response &res) {
+        // Next event
+        server.Get("/events/next", [&model](const httplib::Request &, httplib::Response &res)
+                   {
         
-        std::cout << "GET /events/next" << std::endl;
         nlohmann::json out;
         try {
             auto ev = model.getNextEvent();
@@ -62,13 +59,12 @@ void registerRoutes(httplib::Server &server, Model &model, WakeScheduler *wake) 
         } catch (const std::exception &ex) {
             out = { {"status","error"},{"message","Invalid input"} };
         }
-        res.set_content(out.dump(), "application/json");
-    });
+        res.set_content(out.dump(), "application/json"); });
 
-    // Search events
-    server.Get("/events/search", [&model](const httplib::Request &req, httplib::Response &res) {
+        // Search events
+        server.Get("/events/search", [&model](const httplib::Request &req, httplib::Response &res)
+                   {
         
-        std::cout << "GET /events/search" << std::endl;
         nlohmann::json out;
         try {
             std::string query = req.get_param_value("q");
@@ -86,13 +82,12 @@ void registerRoutes(httplib::Server &server, Model &model, WakeScheduler *wake) 
         } catch (const std::exception &ex) {
             out = { {"status","error"},{"message","Invalid input"} };
         }
-        res.set_content(out.dump(), "application/json");
-    });
+        res.set_content(out.dump(), "application/json"); });
 
-    // Events in range
-    server.Get(R"(/events/range/(\d{4}-\d{2}-\d{2})/(\d{4}-\d{2}-\d{2}))", [&model](const httplib::Request &req, httplib::Response &res) {
+        // Events in range
+        server.Get(R"(/events/range/(\d{4}-\d{2}-\d{2})/(\d{4}-\d{2}-\d{2}))", [&model](const httplib::Request &req, httplib::Response &res)
+                   {
         
-        std::cout << "GET /events/range/" << req.matches[1] << "/" << req.matches[2] << std::endl;
         nlohmann::json out;
         try {
             auto start = TimeUtils::parseDate(req.matches[1]);
@@ -107,13 +102,12 @@ void registerRoutes(httplib::Server &server, Model &model, WakeScheduler *wake) 
         } catch (const std::exception &ex) {
             out = { {"status","error"},{"message","Invalid input"} };
         }
-        res.set_content(out.dump(), "application/json");
-    });
+        res.set_content(out.dump(), "application/json"); });
 
-    // Events by duration
-    server.Get("/events/duration", [&model](const httplib::Request &req, httplib::Response &res) {
+        // Events by duration
+        server.Get("/events/duration", [&model](const httplib::Request &req, httplib::Response &res)
+                   {
         
-        std::cout << "GET /events/duration" << std::endl;
         nlohmann::json out;
         try {
             int minMinutes = 0;
@@ -128,13 +122,12 @@ void registerRoutes(httplib::Server &server, Model &model, WakeScheduler *wake) 
         } catch (const std::exception &ex) {
             out = { {"status","error"},{"message","Invalid input"} };
         }
-        res.set_content(out.dump(), "application/json");
-    });
+        res.set_content(out.dump(), "application/json"); });
 
-    // Categories list
-    server.Get("/categories", [&model](const httplib::Request &, httplib::Response &res) {
+        // Categories list
+        server.Get("/categories", [&model](const httplib::Request &, httplib::Response &res)
+                   {
         
-        std::cout << "GET /categories" << std::endl;
         nlohmann::json out;
         try {
             auto categories = model.getCategories();
@@ -145,13 +138,12 @@ void registerRoutes(httplib::Server &server, Model &model, WakeScheduler *wake) 
         } catch (const std::exception &ex) {
             out = { {"status","error"},{"message","Invalid input"} };
         }
-        res.set_content(out.dump(), "application/json");
-    });
+        res.set_content(out.dump(), "application/json"); });
 
-    // Events by category
-    server.Get(R"(/events/category/(.+))", [&model](const httplib::Request &req, httplib::Response &res) {
+        // Events by category
+        server.Get(R"(/events/category/(.+))", [&model](const httplib::Request &req, httplib::Response &res)
+                   {
         
-        std::cout << "GET /events/category/" << req.matches[1] << std::endl;
         nlohmann::json out;
         try {
             std::string category = req.matches[1];
@@ -163,13 +155,12 @@ void registerRoutes(httplib::Server &server, Model &model, WakeScheduler *wake) 
         } catch (const std::exception &ex) {
             out = { {"status","error"},{"message","Invalid input"} };
         }
-        res.set_content(out.dump(), "application/json");
-    });
+        res.set_content(out.dump(), "application/json"); });
 
-    // Events by day
-    server.Get(R"(/events/day/(\d{4}-\d{2}-\d{2}))", [&model](const httplib::Request &req, httplib::Response &res) {
+        // Events by day
+        server.Get(R"(/events/day/(\d{4}-\d{2}-\d{2}))", [&model](const httplib::Request &req, httplib::Response &res)
+                   {
         
-        std::cout << "GET /events/day/" << req.matches[1] << std::endl;
         nlohmann::json out;
         try {
             auto day = TimeUtils::parseDate(req.matches[1]);
@@ -181,13 +172,12 @@ void registerRoutes(httplib::Server &server, Model &model, WakeScheduler *wake) 
         } catch (const std::exception &ex) {
             out = { {"status","error"},{"message","Invalid input"} };
         }
-        res.set_content(out.dump(), "application/json");
-    });
+        res.set_content(out.dump(), "application/json"); });
 
-    // Events by week
-    server.Get(R"(/events/week/(\d{4}-\d{2}-\d{2}))", [&model](const httplib::Request &req, httplib::Response &res) {
+        // Events by week
+        server.Get(R"(/events/week/(\d{4}-\d{2}-\d{2}))", [&model](const httplib::Request &req, httplib::Response &res)
+                   {
         
-        std::cout << "GET /events/week/" << req.matches[1] << std::endl;
         nlohmann::json out;
         try {
             auto day = TimeUtils::parseDate(req.matches[1]);
@@ -199,13 +189,12 @@ void registerRoutes(httplib::Server &server, Model &model, WakeScheduler *wake) 
         } catch (const std::exception &ex) {
             out = { {"status","error"},{"message","Invalid input"} };
         }
-        res.set_content(out.dump(), "application/json");
-    });
+        res.set_content(out.dump(), "application/json"); });
 
-    // Events by month
-    server.Get(R"(/events/month/(\d{4}-\d{2}))", [&model](const httplib::Request &req, httplib::Response &res) {
+        // Events by month
+        server.Get(R"(/events/month/(\d{4}-\d{2}))", [&model](const httplib::Request &req, httplib::Response &res)
+                   {
         
-        std::cout << "GET /events/month/" << req.matches[1] << std::endl;
         nlohmann::json out;
         try {
             auto month = TimeUtils::parseMonth(req.matches[1]);
@@ -217,13 +206,12 @@ void registerRoutes(httplib::Server &server, Model &model, WakeScheduler *wake) 
         } catch (const std::exception &ex) {
             out = { {"status","error"},{"message","Invalid input"} };
         }
-        res.set_content(out.dump(), "application/json");
-    });
+        res.set_content(out.dump(), "application/json"); });
 
-    // Create new event
-    server.Post("/events", [&model, wake](const httplib::Request &req, httplib::Response &res) {
+        // Create new event
+        server.Post("/events", [&model, wake](const httplib::Request &req, httplib::Response &res)
+                    {
         
-        std::cout << "POST /events" << std::endl;
         nlohmann::json out;
         try {
             auto body = nlohmann::json::parse(req.body);
@@ -247,13 +235,12 @@ void registerRoutes(httplib::Server &server, Model &model, WakeScheduler *wake) 
         } catch (const std::exception &ex) {
             out = { {"status","error"},{"message","Invalid input"} };
         }
-        res.set_content(out.dump(), "application/json");
-    });
+        res.set_content(out.dump(), "application/json"); });
 
-    // Update event
-    server.Put(R"(/events/(.+))", [&model, wake](const httplib::Request &req, httplib::Response &res) {
+        // Update event
+        server.Put(R"(/events/(.+))", [&model, wake](const httplib::Request &req, httplib::Response &res)
+                   {
         
-        std::cout << "PUT /events/" << req.matches[1] << std::endl;
         nlohmann::json out;
         try {
             std::string id = req.matches[1];
@@ -278,13 +265,12 @@ void registerRoutes(httplib::Server &server, Model &model, WakeScheduler *wake) 
         } catch (const std::exception &ex) {
             out = { {"status","error"},{"message","Invalid input"} };
         }
-        res.set_content(out.dump(), "application/json");
-    });
+        res.set_content(out.dump(), "application/json"); });
 
-    // Patch event
-    server.Patch(R"(/events/(.+))", [&model, wake](const httplib::Request &req, httplib::Response &res) {
+        // Patch event
+        server.Patch(R"(/events/(.+))", [&model, wake](const httplib::Request &req, httplib::Response &res)
+                     {
         
-        std::cout << "PATCH /events/" << req.matches[1] << std::endl;
         nlohmann::json out;
         try {
             std::string id = req.matches[1];
@@ -311,13 +297,12 @@ void registerRoutes(httplib::Server &server, Model &model, WakeScheduler *wake) 
         } catch (const std::exception &ex) {
             out = { {"status","error"},{"message","Invalid input"} };
         }
-        res.set_content(out.dump(), "application/json");
-    });
+        res.set_content(out.dump(), "application/json"); });
 
-    // Deleted events
-    server.Get("/events/deleted", [&model](const httplib::Request &, httplib::Response &res) {
+        // Deleted events
+        server.Get("/events/deleted", [&model](const httplib::Request &, httplib::Response &res)
+                   {
         
-        std::cout << "GET /events/deleted" << std::endl;
         nlohmann::json out;
         try {
             auto events = model.getDeletedEvents();
@@ -328,13 +313,12 @@ void registerRoutes(httplib::Server &server, Model &model, WakeScheduler *wake) 
         } catch (const std::exception &ex) {
             out = { {"status","error"},{"message","Invalid input"} };
         }
-        res.set_content(out.dump(), "application/json");
-    });
+        res.set_content(out.dump(), "application/json"); });
 
-    // Restore event
-    server.Post(R"(/events/(.+)/restore)", [&model](const httplib::Request &req, httplib::Response &res) {
+        // Restore event
+        server.Post(R"(/events/(.+)/restore)", [&model](const httplib::Request &req, httplib::Response &res)
+                    {
         
-        std::cout << "POST /events/" << req.matches[1] << "/restore" << std::endl;
         nlohmann::json out;
         try {
             std::string id = req.matches[1];
@@ -345,13 +329,12 @@ void registerRoutes(httplib::Server &server, Model &model, WakeScheduler *wake) 
         } catch (const std::exception &ex) {
             out = { {"status","error"},{"message","Invalid input"} };
         }
-        res.set_content(out.dump(), "application/json");
-    });
+        res.set_content(out.dump(), "application/json"); });
 
-    // Delete all events
-    server.Delete("/events", [&model, wake](const httplib::Request &, httplib::Response &res) {
+        // Delete all events
+        server.Delete("/events", [&model, wake](const httplib::Request &, httplib::Response &res)
+                      {
         
-        std::cout << "DELETE /events" << std::endl;
         nlohmann::json out;
         try {
             model.removeAllEvents();
@@ -360,13 +343,12 @@ void registerRoutes(httplib::Server &server, Model &model, WakeScheduler *wake) 
         } catch (const std::exception &ex) {
             out = { {"status","error"},{"message","Invalid input"} };
         }
-        res.set_content(out.dump(), "application/json");
-    });
+        res.set_content(out.dump(), "application/json"); });
 
-    // Delete day
-    server.Delete(R"(/events/day/(\d{4}-\d{2}-\d{2}))", [&model, wake](const httplib::Request &req, httplib::Response &res) {
+        // Delete day
+        server.Delete(R"(/events/day/(\d{4}-\d{2}-\d{2}))", [&model, wake](const httplib::Request &req, httplib::Response &res)
+                      {
         
-        std::cout << "DELETE /events/day/" << req.matches[1] << std::endl;
         nlohmann::json out;
         try {
             auto day = TimeUtils::parseDate(req.matches[1]);
@@ -377,13 +359,12 @@ void registerRoutes(httplib::Server &server, Model &model, WakeScheduler *wake) 
         } catch (const std::exception &ex) {
             out = { {"status","error"},{"message","Invalid input"} };
         }
-        res.set_content(out.dump(), "application/json");
-    });
+        res.set_content(out.dump(), "application/json"); });
 
-    // Delete week
-    server.Delete(R"(/events/week/(\d{4}-\d{2}-\d{2}))", [&model, wake](const httplib::Request &req, httplib::Response &res) {
+        // Delete week
+        server.Delete(R"(/events/week/(\d{4}-\d{2}-\d{2}))", [&model, wake](const httplib::Request &req, httplib::Response &res)
+                      {
         
-        std::cout << "DELETE /events/week/" << req.matches[1] << std::endl;
         nlohmann::json out;
         try {
             auto day = TimeUtils::parseDate(req.matches[1]);
@@ -394,13 +375,12 @@ void registerRoutes(httplib::Server &server, Model &model, WakeScheduler *wake) 
         } catch (const std::exception &ex) {
             out = { {"status","error"},{"message","Invalid input"} };
         }
-        res.set_content(out.dump(), "application/json");
-    });
+        res.set_content(out.dump(), "application/json"); });
 
-    // Delete before time
-    server.Delete(R"(/events/before/(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}))", [&model, wake](const httplib::Request &req, httplib::Response &res) {
+        // Delete before time
+        server.Delete(R"(/events/before/(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}))", [&model, wake](const httplib::Request &req, httplib::Response &res)
+                      {
         
-        std::cout << "DELETE /events/before/" << req.matches[1] << std::endl;
         nlohmann::json out;
         try {
             std::string ts = req.matches[1];
@@ -413,13 +393,12 @@ void registerRoutes(httplib::Server &server, Model &model, WakeScheduler *wake) 
         } catch (const std::exception &ex) {
             out = { {"status","error"},{"message","Invalid input"} };
         }
-        res.set_content(out.dump(), "application/json");
-    });
+        res.set_content(out.dump(), "application/json"); });
 
-    // Delete single event
-    server.Delete(R"(/events/(.+))", [&model, wake](const httplib::Request &req, httplib::Response &res) {
+        // Delete single event
+        server.Delete(R"(/events/(.+))", [&model, wake](const httplib::Request &req, httplib::Response &res)
+                      {
         
-        std::cout << "DELETE /events/" << req.matches[1] << std::endl;
         nlohmann::json out;
         try {
             std::string id = req.matches[1];
@@ -432,8 +411,7 @@ void registerRoutes(httplib::Server &server, Model &model, WakeScheduler *wake) 
         } catch (const std::exception &ex) {
             out = { {"status","error"},{"message","Invalid input"} };
         }
-        res.set_content(out.dump(), "application/json");
-    });
-}
+        res.set_content(out.dump(), "application/json"); });
+    }
 
 } // namespace EventRoutes

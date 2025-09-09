@@ -9,7 +9,6 @@ namespace StatsRoutes {
 
 void registerRoutes(httplib::Server &server, Model &model) {
     server.Get(R"(/stats/events/(\d{4}-\d{2}-\d{2})/(\d{4}-\d{2}-\d{2}))", [&model](const httplib::Request &req, httplib::Response &res) {
-        std::cout << "GET /stats/events/" << req.matches[1] << "/" << req.matches[2] << std::endl;
         nlohmann::json out;
         try {
             auto start = TimeUtils::parseDate(req.matches[1]);

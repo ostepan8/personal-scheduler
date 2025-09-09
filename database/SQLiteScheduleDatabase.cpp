@@ -146,7 +146,7 @@ bool SQLiteScheduleDatabase::addEvent(const Event &e)
 {
     const char *sql =
         "INSERT OR REPLACE INTO events (id, description, title, time, duration, recurrence, category, notifier, action, google_event_id, google_task_id) "
-        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?);";
+        "VALUES (?,?,?,?,?,?,?,?,?,?,?);";
     sqlite3_stmt *stmt = nullptr;
     if (sqlite3_prepare_v2(db_.get(), sql, -1, &stmt, nullptr) != SQLITE_OK)
         return false;
