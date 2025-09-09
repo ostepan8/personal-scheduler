@@ -21,7 +21,7 @@ unified_scheduler
 # Google Calendar credentials
 calendar_integration/credentials.json
 calendar_integration/token.json
-
+calendar_integration/token.pickle
 # macOS
 .DS_Store
 
@@ -51,4 +51,3 @@ tests/temp_*
 *.tmp
 *.temp
 core.*
-*token.pickle
